@@ -1,21 +1,16 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-*/
 package cmd
 
 import (
 	"fmt"
-	"os"
 
-	"github.com/charmbracelet/x/term"
 	"github.com/spf13/cobra"
 	"github.com/tormgibbs/worklogger/auth"
 	"github.com/tormgibbs/worklogger/tui"
 )
 
-var githubAuthFlag bool
+var githubLoginFlag bool
 
-var LocalAuthFlag bool
+var localLoginFlag bool
 
 // loginCmd represents the login command
 var loginCmd = &cobra.Command{
@@ -36,79 +31,58 @@ If no method is provided, a list of available options will be shown.`,
 
 	Run: func(cmd *cobra.Command, args []string) {
 
-		session, _ := auth.LoadSession()
+		session, err := auth.LoadSession()
+		if err != nil {
+			cmd.PrintErrf("Failed to load session: %v\n", err)
+			return
+		}
+
 		if session.Authenticated {
 			fmt.Println("You've been authenticated already")
 			return
 		}
 
-		if githubAuthFlag && LocalAuthFlag {
+		if githubLoginFlag && localLoginFlag {
 			fmt.Println("Error: You can't use both --github and --local")
 			return
 		}
 
-		if githubAuthFlag {
-			auth.SetToken("github_token", "ghp_mockedGithubToken")
-			auth.SaveSession(auth.Session{
-				Method:        "github",
-				Authenticated: true,
-			})
-
-			fmt.Println("Logged in with GitHub")
-			return
-		}
-
-		if LocalAuthFlag {
-			var username, password string
-
-			fmt.Print("Enter your username: ")
-			fmt.Scanln(&username)
-
-			fmt.Print("Enter your password: ")
-			bytePass, _ := term.ReadPassword(uintptr(os.Stdin.Fd()))
-			
-			fmt.Println()
-
-			password = string(bytePass)
-
-			if err := auth.VerifyLocalCredentials(username, password); err != nil {
-				fmt.Println("Login failed:", err)
-				return
+		if githubLoginFlag {
+			if err := auth.StartGitHubOAuth(); err != nil {
+				cmd.PrintErrf("GitHub OAuth failed: %v\n", err)
 			}
-
-
-			// auth.SetToken("local_token", "mockedLocalToken123")
-			auth.SaveSession(auth.Session{
-				Method:        "local",
-				Authenticated: true,
-			})
-
-			fmt.Println("Logged in successfully with local credentials.")
 			return
 		}
 
-		lm, err := tui.RunLoginUI()
+		if localLoginFlag {
+			if err := auth.LocalLogin(); err != nil {
+				cmd.PrintErrf("Local Login failed: %v\n", err)
+			}
+			return
+		}
+
+		lm, err := tui.RunAuthUI("🔐 Choose a login option")
 		if err != nil {
-			cmd.PrintErrln("Error running Login TUI", err)
+			cmd.PrintErrf("Error running Login TUI: %v\n", err)
 			return
 		}
-
-		var token string
 
 		switch lm.Selected {
-		case "Github":
-			token = "ghp_token_from_ui"
-			auth.SetToken("github_token", token)
-		case "Local Authentication":
-			token = "local_token_from_ui"
-			auth.SetToken("local_token", token)
+		case "GitHub":
+			if err := auth.StartGitHubOAuth(); err != nil {
+				cmd.PrintErrf("GitHub OAuth failed: %v\n", err)
+				return
+			}
+			fmt.Println("GitHub Login Successful")
+		case "Local":
+			if err := auth.LocalLogin(); err != nil {
+				cmd.PrintErrf("Local Login failed: %v\n", err)
+				return
+			}
 		default:
-			fmt.Println("No valid login method selected.")
+			fmt.Println("No login method selected. Exiting.")
 			return
 		}
-
-		auth.SaveSession(auth.Session{Method: lm.Selected, Authenticated: true})
-		fmt.Printf("Successfully logged in using: %s\n", lm.Selected)
 
 	},
 }
@@ -116,9 +90,9 @@ If no method is provided, a list of available options will be shown.`,
 func init() {
 	rootCmd.AddCommand(loginCmd)
 
-	loginCmd.Flags().BoolVarP(&githubAuthFlag, "github", "g", false, "Authenticate with Github")
+	loginCmd.Flags().BoolVarP(&githubLoginFlag, "github", "g", false, "Authenticate with Github")
 
-	loginCmd.Flags().BoolVarP(&LocalAuthFlag, "local", "l", false, "Authenticate locally(email & password)")
+	loginCmd.Flags().BoolVarP(&localLoginFlag, "local", "l", false, "Authenticate locally (email & password)")
 
 	// Here you will define your flags and configuration settings.
 

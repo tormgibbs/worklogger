@@ -1,15 +1,18 @@
+/*
+Copyright © 2025 NAME HERE <EMAIL ADDRESS>
+
+*/
 package cmd
 
 import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"github.com/tormgibbs/worklogger/auth"
 )
 
-// logoutCmd represents the logout command
-var logoutCmd = &cobra.Command{
-	Use:   "logout",
+// logCmd represents the log command
+var logCmd = &cobra.Command{
+	Use:   "log",
 	Short: "A brief description of your command",
 	Long: `A longer description that spans multiple lines and likely contains examples
 and usage of using your command. For example:
@@ -18,40 +21,20 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		session, _ := auth.LoadSession()
-
-		if !session.Authenticated {
-			fmt.Println("You're not logged in.")
-			return
-		}
-
-		switch session.Method {
-		case "github":
-			auth.DeleteToken("github_token")
-		case "local":
-			auth.DeleteToken("local_token")
-		}
-
-		err := auth.DeleteSession()
-		if err != nil {
-			cmd.PrintErrln("Failed to delete session:", err)
-			return
-		}
-
-		fmt.Println("Successfully logged out.")
+		fmt.Println("log called")
 	},
 }
 
 func init() {
-	rootCmd.AddCommand(logoutCmd)
+	rootCmd.AddCommand(logCmd)
 
 	// Here you will define your flags and configuration settings.
 
 	// Cobra supports Persistent Flags which will work for this command
 	// and all subcommands, e.g.:
-	// logoutCmd.PersistentFlags().String("foo", "", "A help for foo")
+	// logCmd.PersistentFlags().String("foo", "", "A help for foo")
 
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
-	// logoutCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	// logCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

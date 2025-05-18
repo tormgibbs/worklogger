@@ -1,18 +1,26 @@
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
 import (
+	"database/sql"
 	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/tormgibbs/worklogger/config"
+	"github.com/tormgibbs/worklogger/data"
 )
 
 var cfgFile string
+
+var dsn string
+
+var db *sql.DB
+
+var models data.Models
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -24,6 +32,18 @@ examples and usage of using your application. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
+
+	PreRun: func(cmd *cobra.Command, args []string) {
+		config.Init()
+		db = data.NewSQLiteDB(dsn)
+		models = data.NewModels(db)
+	},
+
+	PostRun: func(cmd *cobra.Command, args []string) {
+		if db != nil {
+			db.Close()
+		}
+	},
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 	// Run: func(cmd *cobra.Command, args []string) { },
@@ -46,6 +66,8 @@ func init() {
 	// will be global for your application.
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.worklogger.yaml)")
+
+	rootCmd.PersistentFlags().StringVar(&dsn, "dsn", "", "Database connection string (DSN)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.

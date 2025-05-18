@@ -5,47 +5,45 @@ import (
 	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 )
 
-var (
-	titleStyle        = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#7D56F4"))
-	cursorStyle       = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF87"))
-	currentIndexStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF5C57")).Bold(true)
-	selectedStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("42"))
+const (
+	GitHubOAuth = "GitHub"
+	LocalAuth   = "Local"
 )
 
+var AuthChoices = []string{GitHubOAuth, LocalAuth}
 
-
-type LoginModel struct {
+type AuthModel struct {
+	Title    string
 	Choices  []string
 	Cursor   int
 	Selected string
 }
 
-func RunLoginUI() (LoginModel, error) {
-	p := tea.NewProgram(NewLoginModel())
+func RunAuthUI(title string) (AuthModel, error) {
+	p := tea.NewProgram(NewAuthModel(title))
 
 	m, err := p.Run()
 	if err != nil {
-		return LoginModel{}, err
+		return AuthModel{}, err
 	}
 
-	lm := m.(LoginModel)
-	return lm, nil
+	return m.(AuthModel), nil
 }
 
-func NewLoginModel() LoginModel {
-	return LoginModel{
-		Choices: []string{"Github", "Local Authentication"},
+func NewAuthModel(title string) AuthModel {
+	return AuthModel{
+		Choices: AuthChoices,
+		Title: title,
 	}
 }
 
-func (m LoginModel) Init() tea.Cmd {
+func (m AuthModel) Init() tea.Cmd {
 	return nil
 }
 
-func (m LoginModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m AuthModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case tea.KeyMsg:
@@ -73,11 +71,12 @@ func (m LoginModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
-func (m LoginModel) View() string {
+func (m AuthModel) View() string {
 
 	s := strings.Builder{}
 
-	s.WriteString(titleStyle.Render("\n🔐 Choose a login option\n"))
+	// s.WriteString(titleStyle.Render("\n🔐 Choose a login option\n"))
+	s.WriteString(titleStyle.Render(fmt.Sprintf("\n%s\n", m.Title)))
 	s.WriteString("\n")
 
 	for i, choice := range m.Choices {

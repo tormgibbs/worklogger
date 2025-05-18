@@ -1,7 +1,3 @@
-/*
-Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
@@ -21,12 +17,40 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("pause called")
+		ts, err := models.TaskSessions.Get()
+		if err != nil {
+			cmd.PrintErr(fmt.Errorf("failed to check active session: %w", err))
+			fmt.Println()
+			return
+		}
+
+		if ts == nil {
+			fmt.Println("You don't have an active session. Create a new session!")
+			return
+		}
+
+		tsi, err := models.TaskSessionIntervals.End(ts)
+		if err != nil {
+			cmd.PrintErr(fmt.Errorf("failed to pause session: %w", err))
+			fmt.Println()
+			return
+		}
+
+		if tsi == nil {
+			fmt.Println("Session's already paused. Resume it first or stop it!")
+			return
+		}
+
+		formattedTime := tsi.EndTime.Format("2006-01-02 15:04:05")
+		fmt.Printf("Session paused at %v\n", formattedTime)
+
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(pauseCmd)
+
+	// rootCmd.Flags().BoolVarP(&pauseFlag, "pause", "p", false, "Pause Task")
 
 	// Here you will define your flags and configuration settings.
 
