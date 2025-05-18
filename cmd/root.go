@@ -14,13 +14,12 @@ import (
 	"github.com/tormgibbs/worklogger/data"
 )
 
-var cfgFile string
-
-var dsn string
-
-var db *sql.DB
-
-var models data.Models
+var (
+	db      *sql.DB
+	dsn     string
+	cfgFile string
+	models  data.Models
+)
 
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
@@ -33,13 +32,16 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 
-	PreRun: func(cmd *cobra.Command, args []string) {
+	PersistentPreRun: func(cmd *cobra.Command, args []string) {
+		fmt.Println(dsn)
 		config.Init()
-		db = data.NewSQLiteDB(dsn)
-		models = data.NewModels(db)
+		if db == nil {
+			db = data.NewSQLiteDB(dsn)
+			models = data.NewModels(db)
+		}
 	},
 
-	PostRun: func(cmd *cobra.Command, args []string) {
+	PersistentPostRun: func(cmd *cobra.Command, args []string) {
 		if db != nil {
 			db.Close()
 		}
@@ -67,7 +69,7 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.worklogger.yaml)")
 
-	rootCmd.PersistentFlags().StringVar(&dsn, "dsn", "", "Database connection string (DSN)")
+	rootCmd.PersistentFlags().StringVar(&dsn, "dsn", "db.sqlite", "SQLite database file path")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
