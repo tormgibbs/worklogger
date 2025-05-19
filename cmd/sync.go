@@ -27,11 +27,25 @@ Examples:
   worklogger sync --unassociated
 
 If no flag is passed, a prompt will guide you through the sync process.`,
+	PreRunE: func(cmd *cobra.Command, args []string) error {
+		if createNewSession && taskDescription == "" {
+			return fmt.Errorf("when using --new, you must also provide --desc")
+		}
+		if createNewSession && sessionID > 0 {
+			return fmt.Errorf("--new and --existing can't be used together")
+		}
+		if leaveUnassociated {
+			if createNewSession || sessionID > 0 || taskDescription != "" {
+				return fmt.Errorf("--unassociated can't be used with --new, --existing, or --desc")
+			}
+		}
+		return nil
+	},
+
 	Run: func(cmd *cobra.Command, args []string) {
 		currentSession, err := models.TaskSessions.Get()
 		if err != nil {
-			cmd.PrintErr(fmt.Errorf("failed to check active session: %w", err))
-			fmt.Println()
+			cmd.PrintErrf("failed to check active session: %v\n", err)
 			return
 		}
 
@@ -40,6 +54,10 @@ If no flag is passed, a prompt will guide you through the sync process.`,
 			handleActiveSessionSync(cmd, currentSession)
 
 		case createNewSession:
+			if taskDescription == "" {
+				cmd.Println("When using --new, you must also provide --desc (or -d).")
+				return
+			}
 			handleNewSessionSync(cmd)
 
 		case sessionID > 0:
@@ -75,7 +93,7 @@ func init() {
 func handleActiveSessionSync(cmd *cobra.Command, session *data.TaskSession) {
 	commits, err := models.Commits.SyncCommits(&session.ID)
 	if err != nil {
-		cmd.PrintErrf("Failed to sync commits :%w\n", err)
+		cmd.PrintErrf("Failed to sync commits :%v\n", err)
 		return
 	}
 	fmt.Printf("Synced %d new commits\n", commits)
@@ -83,27 +101,19 @@ func handleActiveSessionSync(cmd *cobra.Command, session *data.TaskSession) {
 
 func handleNewSessionSync(cmd *cobra.Command) {
 	if taskDescription == "" {
-		desc, err := tui.RunTaskDescUI()
-		if err != nil {
-			cmd.PrintErrf("Error running task description TUI:%w\n", err)
-			return
-		}
-		if desc == "" {
-			cmd.Println("Task description cannot be empty.")
-			return
-		}
-		taskDescription = desc
+		cmd.Println("Task description cannot be empty. Use --desc or -d to provide one.")
+		return
 	}
 
 	_, newSession, err := data.CreateTaskAndSession(db, taskDescription)
 	if err != nil {
-		cmd.PrintErrf("Failed to create new session:%w\n", err)
+		cmd.PrintErrf("Failed to create new session: %v\n", err)
 		return
 	}
 
 	commits, err := models.Commits.SyncCommits(&newSession.ID)
 	if err != nil {
-		cmd.PrintErrf("Failed to sync commits:%w\n", err)
+		cmd.PrintErrf("Failed to sync commits: %v\n", err)
 		return
 	}
 
@@ -113,13 +123,13 @@ func handleNewSessionSync(cmd *cobra.Command) {
 func handleExistingSessionSync(cmd *cobra.Command, id int) {
 	session, err := models.TaskSessions.GetByID(id)
 	if err != nil {
-		cmd.PrintErrf("Could not find session ID %d: %w\n", id, err)
+		cmd.PrintErrf("Could not find session ID %d: %v\n", id, err)
 		return
 	}
 
 	commits, err := models.Commits.SyncCommits(&session.ID)
 	if err != nil {
-		cmd.PrintErrf("Failed to sync commits:%w\n", err)
+		cmd.PrintErrf("Failed to sync commits:%v\n", err)
 		return
 	}
 
@@ -130,7 +140,7 @@ func handleUnassociatedSync(cmd *cobra.Command) {
 	var nilSessionID *int
 	commits, err := models.Commits.SyncCommits(nilSessionID)
 	if err != nil {
-		cmd.PrintErrf("Failed to sync commits:%w\n", err)
+		cmd.PrintErrf("Failed to sync commits:%v\n", err)
 		return
 	}
 	fmt.Printf("\n✅ Synced %d unassociated commits\n", commits)
@@ -139,7 +149,7 @@ func handleUnassociatedSync(cmd *cobra.Command) {
 func runInteractiveSync(cmd *cobra.Command) {
 	model, err := tui.RunSyncUI("Pick a Sync Option")
 	if err != nil {
-		cmd.PrintErrf("Error running sync TUI:%w\n", err)
+		cmd.PrintErrf("Error running sync TUI:%v\n", err)
 		return
 	}
 
@@ -147,7 +157,7 @@ func runInteractiveSync(cmd *cobra.Command) {
 	case tui.SyncOptionExisting:
 		sessions, err := models.TaskSessions.GetAllWithTask()
 		if err != nil {
-			cmd.PrintErrf("Failed to get sessions:%w\n", err)
+			cmd.PrintErrf("Failed to get sessions:%v\n", err)
 			return
 		}
 		if len(sessions) == 0 {
@@ -157,16 +167,41 @@ func runInteractiveSync(cmd *cobra.Command) {
 
 		selectedSession, err := tui.RunTaskSelectUI("Select a task to associate with these commits", sessions)
 		if err != nil {
-			cmd.PrintErrf("Error selecting session:%w\n", err)
+			cmd.PrintErrf("Error selecting session:%v\n", err)
 			return
 		}
 
 		commits, err := models.Commits.SyncCommits(&selectedSession.ID)
 		if err != nil {
-			cmd.PrintErrf("Failed to sync commits:%w\n", err)
+			cmd.PrintErrf("Failed to sync commits:%v\n", err)
 			return
 		}
 		fmt.Printf("\n✅ Synced %d commits\n", commits)
+
+	case tui.SyncOptionNew:
+		desc, err := tui.RunNewTaskUI()
+		if err != nil {
+			cmd.PrintErrf("Error running new task TUI:%v\n", err)
+			return
+		}
+		if desc == "" {
+			cmd.Println("Task description cannot be empty.")
+			return
+		}
+
+		_, newSession, err := data.CreateTaskAndSession(db, desc)
+		if err != nil {
+			cmd.PrintErrf("Failed to create new session:%v\n", err)
+			return
+		}
+
+		commits, err := models.Commits.SyncCommits(&newSession.ID)
+		if err != nil {
+			cmd.PrintErrf("Failed to sync commits:%v\n", err)
+			return
+		}
+
+		fmt.Printf("🎉 Created new session #%d and synced %d commits\n", newSession.ID, commits)
 
 	case tui.SyncOptionUnassociated:
 		handleUnassociatedSync(cmd)

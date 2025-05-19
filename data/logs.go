@@ -2,7 +2,6 @@ package data
 
 import (
 	"database/sql"
-	"fmt"
 	"time"
 )
 
@@ -33,21 +32,58 @@ type LogCommit struct {
 	Date    string
 }
 
-func (m LogModel) GetLogs() ([]Log, error) {
+func (m LogModel) GetLogsWithDurations() ([]Log, error) {
 	query := `
-	SELECT
-		ts.id,
-		t.description,
-		ts.started_at,
-		ts.ended_at,
-		c.message,
-		c.hash,
-		c.author,
-		c.date
-	FROM task_sessions ts
-	JOIN tasks t ON t.id = ts.task_id
-	LEFT JOIN commits c ON c.task_session_id = ts.id
-	ORDER BY DATE(ts.started_at) DESC, ts.started_at ASC, c.id ASC;
+	WITH interval_totals AS (
+		SELECT
+			session_id,
+			SUM(CAST(strftime('%s', end_time) - strftime('%s', start_time) AS INTEGER)) AS active_seconds
+		FROM task_session_intervals
+		WHERE end_time IS NOT NULL
+		GROUP BY session_id
+	),
+	session_logs AS (
+		SELECT
+			ts.id AS session_id,
+			t.description AS task_description,
+			ts.started_at,
+			ts.ended_at,
+			CAST(strftime('%s', COALESCE(ts.ended_at, CURRENT_TIMESTAMP)) - strftime('%s', ts.started_at) AS INTEGER) AS total_seconds,
+			IFNULL(it.active_seconds, 0) AS active_seconds,
+			c.message AS commit_message,
+			c.hash AS commit_hash,
+			c.author AS commit_author,
+			c.date AS commit_date
+		FROM task_sessions ts
+		JOIN tasks t ON t.id = ts.task_id
+		LEFT JOIN interval_totals it ON it.session_id = ts.id
+		LEFT JOIN commits c ON c.session_id = ts.id
+	),
+	orphan_commits AS (
+		SELECT
+			NULL AS session_id,
+			'[Unassociated]' AS task_description,
+			NULL AS started_at,
+			NULL AS ended_at,
+			0 AS total_seconds,
+			0 AS active_seconds,
+			c.message AS commit_message,
+			c.hash AS commit_hash,
+			c.author AS commit_author,
+			c.date AS commit_date
+		FROM commits c
+		WHERE c.session_id IS NULL
+	)
+	SELECT *
+	FROM (
+		SELECT * FROM session_logs
+		UNION ALL
+		SELECT * FROM orphan_commits
+	)
+	ORDER BY 
+		started_at IS NULL,       -- push NULLs (orphans) to the bottom
+		date(started_at) DESC,
+		started_at ASC;
 	`
 
 	rows, err := m.DB.Query(query)
@@ -57,72 +93,109 @@ func (m LogModel) GetLogs() ([]Log, error) {
 	defer rows.Close()
 
 	type rowData struct {
-		sessionID   int
-		description string
-		startedAt   time.Time
-		endedAt     time.Time
-		message     sql.NullString
-		hash        sql.NullString
-		author      sql.NullString
-		commitDate  sql.NullString
+		SessionID     sql.NullInt64
+		Task          string
+		StartedAt     NullTime
+		EndedAt       NullTime
+		TotalSeconds  sql.NullInt64
+		ActiveSeconds int64
+		Message       sql.NullString
+		Hash          sql.NullString
+		Author        sql.NullString
+		CommitDate    sql.NullString
 	}
 
-	var rowsData []rowData
+	rowsData := []rowData{}
 	for rows.Next() {
 		var r rowData
-		err := rows.Scan(
-			&r.sessionID,
-			&r.description,
-			&r.startedAt,
-			&r.endedAt,
-			&r.message,
-			&r.hash,
-			&r.author,
-			&r.commitDate,
-		)
-		if err != nil {
+		if err := rows.Scan(
+			&r.SessionID,
+			&r.Task,
+			&r.StartedAt,
+			&r.EndedAt,
+			&r.TotalSeconds,
+			&r.ActiveSeconds,
+			&r.Message,
+			&r.Hash,
+			&r.Author,
+			&r.CommitDate,
+		); err != nil {
 			return nil, err
 		}
 		rowsData = append(rowsData, r)
 	}
 
-	// Group rows by session
 	sessionsMap := make(map[int]*LogSession)
-	for _, row := range rowsData {
-		session, exists := sessionsMap[row.sessionID]
-		if !exists {
-			active, paused, total, err := TaskSessionModel(m).GetDurations(row.sessionID)
-			if err != nil {
-				return nil, fmt.Errorf("getting durations for session %d: %w", row.sessionID, err)
-			}
+	const orphanKey = -1
+	var orphanSession *LogSession
 
-			sessionsMap[row.sessionID] = &LogSession{
-				ID:         row.sessionID,
-				Task:       row.description,
-				StartedAt:  row.startedAt,
-				EndedAt:    row.endedAt,
-				ActiveTime: active,
-				PausedTime: paused,
-				TotalTime:  total,
+	for _, row := range rowsData {
+		if !row.SessionID.Valid {
+			if orphanSession == nil {
+				orphanSession = &LogSession{
+					ID:        orphanKey,
+					Task:      "[Unassociated]",
+					StartedAt: time.Time{},
+					EndedAt:   time.Time{},
+				}
 			}
-			session = sessionsMap[row.sessionID]
+			if row.Message.Valid {
+				orphanSession.Commits = append(orphanSession.Commits, LogCommit{
+					Message: row.Message.String,
+					Hash:    row.Hash.String,
+					Author:  row.Author.String,
+					Date:    row.CommitDate.String,
+				})
+			}
+			continue
 		}
 
-		if row.message.Valid {
+		sessionID := int(row.SessionID.Int64)
+		session, exists := sessionsMap[sessionID]
+		if !exists {
+			total := time.Duration(row.TotalSeconds.Int64) * time.Second
+			active := time.Duration(row.ActiveSeconds) * time.Second
+			paused := total - active
+			if paused < 0 {
+				paused = 0
+			}
+
+			startedAt := time.Time{}
+			if row.StartedAt.Valid {
+				startedAt = row.StartedAt.Time
+			}
+			endedAt := time.Time{}
+			if row.EndedAt.Valid {
+				endedAt = row.EndedAt.Time
+			}
+
+			sessionsMap[sessionID] = &LogSession{
+				ID:         sessionID,
+				Task:       row.Task,
+				StartedAt:  startedAt,
+				EndedAt:    endedAt,
+				TotalTime:  total,
+				ActiveTime: active,
+				PausedTime: paused,
+			}
+			session = sessionsMap[sessionID]
+		}
+
+		if row.Message.Valid {
 			session.Commits = append(session.Commits, LogCommit{
-				Message: row.message.String,
-				Hash:    row.hash.String,
-				Author:  row.author.String,
-				Date:    row.commitDate.String,
+				Message: row.Message.String,
+				Hash:    row.Hash.String,
+				Author:  row.Author.String,
+				Date:    row.CommitDate.String,
 			})
 		}
 	}
 
-	// Group sessions by date
+	// Group by date
 	logMap := make(map[string]*Log)
-	for _, session := range sessionsMap {
-		dateKey := session.StartedAt.Format("Jan 02") // like "May 15"
 
+	for _, session := range sessionsMap {
+		dateKey := session.StartedAt.Format("Jan 02")
 		logDay, exists := logMap[dateKey]
 		if !exists {
 			logMap[dateKey] = &Log{
@@ -134,14 +207,19 @@ func (m LogModel) GetLogs() ([]Log, error) {
 		}
 	}
 
-	// Convert map to slice
+	// Add orphan commits to their own group
+	if orphanSession != nil && len(orphanSession.Commits) > 0 {
+		logMap["Unassociated"] = &Log{
+			Date:     "Unassociated",
+			Sessions: []LogSession{*orphanSession},
+		}
+	}
+
 	var logs []Log
 	for _, log := range logMap {
 		logs = append(logs, *log)
 	}
 
-	// Optional: sort logs by date (desc)
-	// You can do this if you care about order
-
 	return logs, nil
 }
+

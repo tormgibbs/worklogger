@@ -10,17 +10,20 @@ import (
 const (
 	SyncOptionExisting     = "Associate with existing task"
 	SyncOptionUnassociated = "Leave commits unassociated"
+	SyncOptionNew          = "Create a new task"
 	SyncOptionCancel       = "Cancel sync"
 )
 
 var SyncChoices = []string{
 	SyncOptionExisting,
+	SyncOptionNew,
 	SyncOptionUnassociated,
 	SyncOptionCancel,
 }
 
 var syncTooltips = map[string]string{
 	"Associate with existing task": "Pick a task you’ve already started to sync the commits with it.",
+	"Create a new task":            "Start fresh with a new task and sync the commits to it.",
 	"Leave commits unassociated":   "Skip attaching commits to any task — just log them raw.",
 	"Cancel sync":                  "Abort the sync process. No changes will be made.",
 }

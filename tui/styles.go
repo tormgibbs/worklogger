@@ -10,8 +10,14 @@ var (
 	hintStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
 	tooltipStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("244")).Italic(true).PaddingTop(1)
 
-	taskTitleStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true).Underline(true)
+	taskTitleStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("212")).Bold(true).Underline(true)
 	taskCursorStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
 	taskActiveStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("81")).Bold(true)
-	taskHintStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+	taskHintStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("240")).Italic(true)
+
+	logTitleStyle  = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("#FFA500"))
+	dateStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#7D56F4")).Bold(true)
+	taskStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#00FF00"))
+	timeStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("#FF5C57"))
+	commitStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("#61AFEF"))
 )

@@ -3,80 +3,28 @@ package tui
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/tormgibbs/worklogger/data"
 )
 
-type Commit struct {
-	Message string
-}
-
-type WorkSession struct {
-	StartTime string
-	EndTime   string
-	Task      string
-	Duration  string
-	Commits   []Commit
-}
-
-type DayLog struct {
-	Date     string
-	Sessions []WorkSession
-}
-
 type LogModel struct {
-	DayLogs []DayLog
+	Logs []data.Log
 }
 
-// func NewLogModel() LogModel {
-// 	sessions := db.GetSessionsWithCommits() // your custom function
-// 	return LogModel{DayLogs: formatIntoDayLogs(sessions)}
-// }
-
-func NewLogModel() LogModel {
-	// Load your real data here instead
-	return LogModel{
-		DayLogs: []DayLog{
-			{
-				Date: "May 15",
-				Sessions: []WorkSession{
-					{
-						StartTime: "10:32",
-						EndTime:   "12:03",
-						Task:      "Implement user login",
-						Duration:  "1h 31m",
-						Commits: []Commit{
-							{Message: "feat: login page UI + validation"},
-							{Message: "fix: auth token refresh"},
-						},
-					},
-					{
-						StartTime: "14:15",
-						EndTime:   "15:45",
-						Task:      "Refactor session API",
-						Duration:  "1h 30m",
-						Commits: []Commit{
-							{Message: "refactor: cleaned up controller logic"},
-						},
-					},
-				},
-			},
-			{
-				Date: "May 14",
-				Sessions: []WorkSession{
-					{
-						StartTime: "11:00",
-						EndTime:   "12:00",
-						Task:      "Write README docs",
-						Duration:  "1h 0m",
-						Commits: []Commit{
-							{Message: "docs: initial usage guide"},
-						},
-					},
-				},
-			},
-		},
+func RunLogUI(logs []data.Log) (LogModel, error) {
+	p := tea.NewProgram(NewLogModel(logs))
+	m, err := p.Run()
+	if err != nil {
+		return LogModel{}, err
 	}
+
+	return m.(LogModel), nil
+}
+
+func NewLogModel(logs []data.Log) LogModel {
+	return LogModel{logs}
 }
 
 func (m LogModel) Init() tea.Cmd {
@@ -96,15 +44,23 @@ func (m LogModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m LogModel) View() string {
 	var b strings.Builder
-
 	b.WriteString("📅 Work Sessions\n\n")
 
-	for _, log := range m.DayLogs {
+	for _, log := range m.Logs {
 		b.WriteString(fmt.Sprintf("[%s]\n", log.Date))
 
 		for _, s := range log.Sessions {
+			start := s.StartedAt.Format("15:04")
+
+			end := "ongoing"
+			if !s.EndedAt.IsZero() {
+				end = s.EndedAt.Format("15:04")
+			}
+
+			duration := fmtDuration(s.TotalTime)
+
 			b.WriteString(fmt.Sprintf("🕒 %s - %s | Task: \"%s\" | ⏱ %s\n",
-				s.StartTime, s.EndTime, s.Task, s.Duration))
+				start, end, s.Task, duration))
 
 			if len(s.Commits) > 0 {
 				b.WriteString("  - Commits:\n")
@@ -120,27 +76,8 @@ func (m LogModel) View() string {
 	return b.String()
 }
 
-// func formatIntoDayLogs(sessions []WorkSession) []DayLog {
-// 	grouped := make(map[string][]WorkSession)
-
-// 	// group by date
-// 	for _, s := range sessions {
-// 		grouped[s.Date] = append(grouped[s.Date], s)
-// 	}
-
-// 	// convert map into sorted slice
-// 	var dayLogs []DayLog
-// 	for date, sess := range grouped {
-// 		dayLogs = append(dayLogs, DayLog{
-// 			Date:     date,
-// 			Sessions: sess,
-// 		})
-// 	}
-
-// 	// optional: sort by date if you want
-// 	// sort.Slice(dayLogs, func(i, j int) bool {
-// 	//     return dayLogs[i].Date > dayLogs[j].Date // newest first
-// 	// })
-
-// 	return dayLogs
-// }
+func fmtDuration(d time.Duration) string {
+	h := int(d.Hours())
+	m := int(d.Minutes()) % 60
+	return fmt.Sprintf("%dh %dm", h, m)
+}

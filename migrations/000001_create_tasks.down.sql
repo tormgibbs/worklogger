@@ -1,3 +1,4 @@
 DROP TABLE IF EXISTS tasks;
 DROP TABLE IF EXISTS task_sessions;
 DROP TABLE IF EXISTS session_intervals;
+DROP TABLE IF EXISTS commits;

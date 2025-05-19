@@ -1,13 +1,11 @@
 /*
 Copyright © 2025 NAME HERE <EMAIL ADDRESS>
-
 */
 package cmd
 
 import (
-	"fmt"
-
 	"github.com/spf13/cobra"
+	"github.com/tormgibbs/worklogger/tui"
 )
 
 // logCmd represents the log command
@@ -21,7 +19,21 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("log called")
+
+		logs, err := models.Logs.GetLogsWithDurations()
+		if err != nil {
+			cmd.PrintErrf("failed to get logs: %v\n", err)
+			return
+		}
+
+		// fmt.Println("logs: ", logs)
+
+		_, err = tui.RunLogUI(logs)
+		if err != nil {
+			cmd.PrintErrf("failed to run log tui: %v", err)
+			return
+		}
+
 	},
 }
 

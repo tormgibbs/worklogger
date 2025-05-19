@@ -7,6 +7,7 @@ type Models struct {
 	TaskSessions         TaskSessionModel
 	TaskSessionIntervals TaskSessionIntervalModel
 	Commits              CommitModel
+	Logs                 LogModel
 }
 
 func NewModels(DB *sql.DB) Models {
@@ -15,5 +16,6 @@ func NewModels(DB *sql.DB) Models {
 		TaskSessions:         TaskSessionModel{DB},
 		TaskSessionIntervals: TaskSessionIntervalModel{DB},
 		Commits:              CommitModel{DB},
+		Logs:                 LogModel{DB},
 	}
 }

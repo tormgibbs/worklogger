@@ -49,11 +49,11 @@ func (m TaskDescModel) View() string {
 		return "Cancelled.\n"
 	}
 
-	title := lipgloss.NewStyle().Bold(true).Render("📝 Enter a description for the new task:")
+	title := lipgloss.NewStyle().Bold(true).Render("\n📝 Enter a description for the new task:")
 	return title + "\n\n" + m.Input.View() + "\n\n(press Enter to continue, Esc to cancel)"
 }
 
-func RunTaskDescUI() (string, error) {
+func RunNewTaskUI() (string, error) {
 	p := tea.NewProgram(NewTaskDescModel())
 	m, err := p.Run()
 	if err != nil {
