@@ -31,9 +31,11 @@ examples and usage of using your application. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
+	// Uncomment the following line if your bare application
+	// has an action associated with it:
+	// Run: func(cmd *cobra.Command, args []string) { },
 
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		fmt.Println(dsn)
 		config.Init()
 		if db == nil {
 			db = data.NewSQLiteDB(dsn)
@@ -46,9 +48,6 @@ to quickly create a Cobra application.`,
 			db.Close()
 		}
 	},
-	// Uncomment the following line if your bare application
-	// has an action associated with it:
-	// Run: func(cmd *cobra.Command, args []string) { },
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.

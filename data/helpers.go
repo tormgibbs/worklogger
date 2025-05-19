@@ -83,3 +83,49 @@ func (m TaskSessionModel) GetDurations(sessionID int) (totalTime, activeTime, pa
 
 	return activeTime, pausedTime, totalTime, nil
 }
+
+func CreateTaskAndSession(db *sql.DB, description string) (*Task, *TaskSession, error) {
+	tx, err := db.Begin()
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't start transaction: %w", err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	// Step 1: Insert Task and get back ID + CreatedAt
+	query := `
+		INSERT INTO tasks (description)
+		VALUES (?)
+		RETURNING id, description, created_at
+	`
+	task := &Task{}
+	err = tx.QueryRowContext(ctx,query, description).Scan(&task.ID, &task.Description, &task.CreatedAt)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, nil, fmt.Errorf("failed to insert task: %w", err)
+	}
+
+	query = `
+		INSERT INTO task_sessions (task_id)
+		VALUES (?)
+		RETURNING id, task_id, started_at, ended_at
+	`
+
+	// Step 2: Insert Task Session and get back full info
+	session := &TaskSession{}
+	err = tx.QueryRowContext(ctx, query, task.ID).Scan(&session.ID, &session.TaskID, &session.StartedAt, &session.EndedAt)
+
+	if err != nil {
+		tx.Rollback()
+		return nil, nil, fmt.Errorf("failed to insert task session: %w", err)
+	}
+
+	// Finalize the transaction
+	if err = tx.Commit(); err != nil {
+		return nil, nil, fmt.Errorf("commit failed: %w", err)
+	}
+
+	return task, session, nil
+}

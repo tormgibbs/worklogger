@@ -23,3 +23,5 @@ func (m TaskModel) CreateTx(tx *sql.Tx, task *Task) error {
 	`
 	return tx.QueryRow(query, task.Description).Scan(&task.ID, &task.CreatedAt)
 }
+
+

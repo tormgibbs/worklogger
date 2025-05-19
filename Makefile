@@ -1,5 +1,5 @@
 DB_DSN=sqlite3://db.sqlite
-DB_PATH=worklogger.sqlite
+DB_PATH=db.sqlite
 MIGRATIONS_DIR=migrations
 
 # =================================================================================== #
