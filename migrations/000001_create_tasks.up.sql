@@ -29,3 +29,7 @@ CREATE TABLE IF NOT EXISTS commits (
 	date TEXT,
 	FOREIGN KEY (session_id) REFERENCES task_sessions(id) ON DELETE CASCADE
 );
+
+
+-- A task created creates a session and starts a session interval...a session can be paused(ie. session interval ends), a session can be resumed (ie a new session interval starts) and a session can be ended (the session interval ends which ends the session)
+--
