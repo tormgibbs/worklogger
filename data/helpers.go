@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 	"sync"
@@ -237,63 +238,80 @@ func GetTodayHours(db *sql.DB) (float64, float64, error) {
 	var today float64
 	var yesterday float64
 
-	query := `
-		SELECT COALESCE(SUM((strftime('%s', end_time) - strftime('%s', start_time)) / 3600.0), 0)
+	todayQuery := `
+		SELECT COALESCE(SUM(
+			(strftime('%s', MIN(COALESCE(end_time, CURRENT_TIMESTAMP), DATETIME('now', 'start of day', '+1 day', 'localtime')))
+			- strftime('%s', MAX(start_time, DATETIME('now', 'start of day', 'localtime')))) / 3600.0
+		), 0)
 		FROM task_session_intervals
-		WHERE DATE(start_time) = DATE('now', 'localtime') AND end_time IS NOT NULL
+		WHERE
+			start_time < DATETIME('now', 'start of day', '+1 day', 'localtime') AND
+			COALESCE(end_time, CURRENT_TIMESTAMP) > DATETIME('now', 'start of day', 'localtime')
 	`
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := db.QueryRowContext(ctx, query).Scan(&today)
+	err := db.QueryRowContext(ctx, todayQuery).Scan(&today)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	query = `
-		SELECT COALESCE(SUM((strftime('%s', end_time) - strftime('%s', start_time)) / 3600.0), 0)
+	yesterdayQuery := `
+		SELECT COALESCE(SUM(
+			(strftime('%s', MIN(end_time, DATETIME('now', 'start of day')))
+			- strftime('%s', MAX(start_time, DATETIME('now', '-1 day', 'start of day')))) / 3600.0
+		), 0)
 		FROM task_session_intervals
-		WHERE DATE(start_time) = DATE('now', '-1 day', 'localtime') AND end_time IS NOT NULL
+		WHERE
+			start_time < DATETIME('now', 'start of day') AND
+			end_time > DATETIME('now', '-1 day', 'start of day')
 	`
-	err = db.QueryRowContext(ctx, query).Scan(&yesterday)
+	err = db.QueryRowContext(ctx, yesterdayQuery).Scan(&yesterday)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	return today, calculateChange(today, yesterday), nil
+	return math.Round(today), calculateChange(today, yesterday), nil
 }
 
 func GetWeekHours(db *sql.DB) (float64, float64, error) {
 	var currentWeek float64
 	var previousWeek float64
 
-	query := `
-		SELECT COALESCE(SUM((strftime('%s', end_time) - strftime('%s', start_time)) / 3600.0), 0)
+	currentWeekQuery := `
+		SELECT COALESCE(SUM(
+				(strftime('%s', COALESCE(end_time, DATETIME('now'))) 
+				- strftime('%s', start_time)) / 3600.0
+		), 0)
 		FROM task_session_intervals
-		WHERE start_time >= DATE('now', 'weekday 1', '-6 days', 'localtime')
-		AND end_time IS NOT NULL
+		WHERE 
+				start_time < DATETIME('now', 'weekday 1', 'start of day') AND
+				(end_time IS NULL OR end_time >= DATETIME('now', 'weekday 1', '-7 days', 'start of day'));
 	`
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	err := db.QueryRowContext(ctx, query).Scan(&currentWeek)
+	err := db.QueryRowContext(ctx, currentWeekQuery).Scan(&currentWeek)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	query = `
-		SELECT COALESCE(SUM((strftime('%s', end_time) - strftime('%s', start_time)) / 3600.0), 0)
+	previousWeekQuery := `
+		SELECT COALESCE(SUM(
+				(strftime('%s', COALESCE(end_time, DATETIME('now', 'weekday 1', '-7 days', 'start of day'))) 
+				- strftime('%s', start_time)) / 3600.0
+		), 0)
 		FROM task_session_intervals
-		WHERE start_time >= DATE('now', 'weekday 1', '-13 days', 'localtime')
-		AND start_time < DATE('now', 'weekday 1', '-7 days', 'localtime')
-		AND end_time IS NOT NULL
+		WHERE 
+				start_time < DATETIME('now', 'weekday 1', '-7 days', 'start of day') AND
+				(end_time IS NULL OR end_time >= DATETIME('now', 'weekday 1', '-14 days', 'start of day'));
 	`
-	err = db.QueryRowContext(ctx, query).Scan(&previousWeek)
+	err = db.QueryRowContext(ctx, previousWeekQuery).Scan(&previousWeek)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	return currentWeek, calculateChange(currentWeek, previousWeek), nil
+	return math.Round(currentWeek), calculateChange(currentWeek, previousWeek), nil
 }
 
 func GetTodaySessions(db *sql.DB) (int, float64, error) {
@@ -303,7 +321,9 @@ func GetTodaySessions(db *sql.DB) (int, float64, error) {
 	query := `
 		SELECT COUNT(*)
 		FROM task_sessions
-		WHERE DATE(started_at) = DATE('now', 'localtime')
+		WHERE
+			started_at < DATETIME('now', '+1 day', 'start of day') AND
+			COALESCE(ended_at, CURRENT_TIMESTAMP) >= DATETIME('now', 'start of day')
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -317,7 +337,9 @@ func GetTodaySessions(db *sql.DB) (int, float64, error) {
 	query = `
 		SELECT COUNT(*)
 		FROM task_sessions
-		WHERE DATE(started_at) = DATE('now', '-1 day', 'localtime')
+		WHERE
+			started_at < DATETIME('now', 'start of day') AND
+			COALESCE(ended_at, CURRENT_TIMESTAMP) >= DATETIME('now', '-1 day', 'start of day')
 	`
 	err = db.QueryRowContext(ctx, query).Scan(&previousDay)
 	if err != nil {
@@ -333,9 +355,14 @@ func GetProductivityScore(db *sql.DB) (float64, float64, error) {
 
 	query := `
 		WITH intervals AS (
-			SELECT (strftime('%s', end_time) - strftime('%s', start_time)) AS duration_sec
+			SELECT
+				(strftime('%s', MIN(end_time, DATETIME('now', '+1 day', 'start of day', 'localtime')))
+				- strftime('%s', MAX(start_time, DATETIME('now', 'start of day', 'localtime')))
+				) AS duration_sec
 			FROM task_session_intervals
-			WHERE DATE(start_time) = DATE('now', 'localtime') AND end_time IS NOT NULL
+			WHERE
+				start_time < DATETIME('now', '+1 day', 'start of day', 'localtime') AND
+				end_time > DATETIME('now', 'start of day', 'localtime')
 		),
 		productive AS (
 			SELECT SUM(duration_sec) AS total_productive FROM intervals WHERE duration_sec >= 1200
@@ -358,9 +385,14 @@ func GetProductivityScore(db *sql.DB) (float64, float64, error) {
 
 	query = `
 		WITH intervals AS (
-			SELECT (strftime('%s', end_time) - strftime('%s', start_time)) AS duration_sec
+			SELECT
+				(strftime('%s', MIN(end_time, DATETIME('now', 'start of day', 'localtime')))
+				- strftime('%s', MAX(start_time, DATETIME('now', '-1 day', 'start of day', 'localtime')))
+				) AS duration_sec
 			FROM task_session_intervals
-			WHERE DATE(start_time) = DATE('now', '-1 day', 'localtime') AND end_time IS NOT NULL
+			WHERE
+				start_time < DATETIME('now', 'start of day', 'localtime') AND
+				end_time > DATETIME('now', '-1 day', 'start of day', 'localtime')
 		),
 		productive AS (
 			SELECT SUM(duration_sec) AS total_productive FROM intervals WHERE duration_sec >= 1200
@@ -388,7 +420,9 @@ func calculateChange(current, previous float64) float64 {
 		}
 		return 100
 	}
-	return ((current - previous) / previous) * 100
+
+	change := ((current - previous) / previous) * 100
+	return math.Round(change)
 }
 
 func setErr(dst *error, err error) {
@@ -399,12 +433,28 @@ func setErr(dst *error, err error) {
 
 func GetDailyStats(db *sql.DB) ([]*DailyStat, error) {
 	query := `
+		WITH RECURSIVE days(day) AS (
+				SELECT DATE('now', '-6 days')
+				UNION ALL
+				SELECT DATE(day, '+1 day')
+				FROM days
+				WHERE day < DATE('now')
+		),
+		intervals AS (
+				SELECT 
+						DATE(day) AS period,
+						session_id,
+						(strftime('%s', MIN(COALESCE(end_time, CURRENT_TIMESTAMP), DATETIME(day, '+1 day'))) -
+						strftime('%s', MAX(start_time, DATETIME(day)))) / 3600.0 AS duration
+				FROM task_session_intervals
+				JOIN days
+				ON start_time < DATETIME(days.day, '+1 day') AND COALESCE(end_time, CURRENT_TIMESTAMP) > days.day
+		)
 		SELECT 
-			DATE(start_time, 'localtime') as period,
-			COUNT(DISTINCT session_id) as sessions,
-			SUM((strftime('%s', COALESCE(end_time, CURRENT_TIMESTAMP)) - strftime('%s', start_time)) / 3600.0) as hours
-		FROM task_session_intervals
-		WHERE start_time >= DATE('now', '-6 days')
+				period,
+				COUNT(DISTINCT session_id) AS sessions,
+				SUM(duration) AS hours
+		FROM intervals
 		GROUP BY period
 		ORDER BY period;
 	`
@@ -437,14 +487,31 @@ func GetDailyStats(db *sql.DB) ([]*DailyStat, error) {
 
 func GetWeeklyStats(db *sql.DB) ([]*WeeklyStat, error) {
 	query := `
+		WITH RECURSIVE weeks(start_date) AS (
+			SELECT DATE('now', 'weekday 1', '-21 days')  -- Start from 3 weeks ago Monday
+			UNION ALL
+			SELECT DATE(start_date, '+7 days')
+			FROM weeks
+			WHERE start_date < DATE('now', 'weekday 1')
+		),
+		intervals AS (
+			SELECT 
+				weeks.start_date AS week_start,
+				session_id,
+				(strftime('%s', MIN(COALESCE(end_time, CURRENT_TIMESTAMP), DATETIME(weeks.start_date, '+7 days'))) -
+				 strftime('%s', MAX(start_time, DATETIME(weeks.start_date)))) / 3600.0 AS duration
+			FROM task_session_intervals
+			JOIN weeks
+				ON start_time < DATETIME(weeks.start_date, '+7 days')
+				AND COALESCE(end_time, CURRENT_TIMESTAMP) > weeks.start_date
+		)
 		SELECT 
-			strftime('%Y-%W', start_time, 'localtime') as period,
-			COUNT(DISTINCT session_id) as sessions,
-			SUM((strftime('%s', COALESCE(end_time, CURRENT_TIMESTAMP)) - strftime('%s', start_time)) / 3600.0) as hours
-		FROM task_session_intervals
-		WHERE start_time >= DATE('now', '-28 days')
-		GROUP BY period
-		ORDER BY period;
+			week_start,
+			COUNT(DISTINCT session_id) AS sessions,
+			ROUND(SUM(duration), 2) AS hours
+		FROM intervals
+		GROUP BY week_start
+		ORDER BY week_start;
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -460,18 +527,9 @@ func GetWeeklyStats(db *sql.DB) ([]*WeeklyStat, error) {
 
 	for rows.Next() {
 		var ws WeeklyStat
-		var period string
-		if err := rows.Scan(&period, &ws.Sessions, &ws.Hours); err != nil {
+		if err := rows.Scan(&ws.Start, &ws.Sessions, &ws.Hours); err != nil {
 			return nil, fmt.Errorf("scan failed: %w", err)
 		}
-
-		// Convert the period 'YYYY-WW' into the date of the week start (Monday)
-		weekStart, err := parseWeekStart(period)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse week start: %w", err)
-		}
-		ws.Start = weekStart.Format("2006-01-02")
-
 		stats = append(stats, &ws)
 	}
 
@@ -484,14 +542,31 @@ func GetWeeklyStats(db *sql.DB) ([]*WeeklyStat, error) {
 
 func GetMonthlyStats(db *sql.DB) ([]*MonthlyStat, error) {
 	query := `
-		SELECT 
-			strftime('%Y-%m', start_time, 'localtime') as period,
-			COUNT(DISTINCT session_id) as sessions,
-			SUM((strftime('%s', COALESCE(end_time, CURRENT_TIMESTAMP)) - strftime('%s', start_time)) / 3600.0) as hours
-		FROM task_session_intervals
-		WHERE start_time >= DATE('now', '-3 months')
-		GROUP BY period
-		ORDER BY period;
+		WITH RECURSIVE months(month_start) AS (
+			SELECT DATE('now', 'start of month', '-2 months', 'localtime')
+			UNION ALL
+			SELECT DATE(month_start, '+1 month')
+			FROM months
+			WHERE month_start < DATE('now', 'start of month', 'localtime')
+		)
+		SELECT
+			month_start,
+			COUNT(DISTINCT tsi.session_id) AS sessions,
+			COALESCE(SUM(
+				CAST(
+					(
+						strftime('%s', MIN(COALESCE(tsi.end_time, CURRENT_TIMESTAMP), DATE(month_start, '+1 month')))
+						-
+						strftime('%s', MAX(tsi.start_time, month_start))
+					) AS REAL
+				) / 3600.0
+			), 0) AS hours
+		FROM months
+		LEFT JOIN task_session_intervals tsi ON
+			tsi.start_time < DATE(month_start, '+1 month') AND
+			COALESCE(tsi.end_time, CURRENT_TIMESTAMP) > month_start
+		GROUP BY month_start
+		ORDER BY month_start;
 	`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
@@ -518,8 +593,8 @@ func GetMonthlyStats(db *sql.DB) ([]*MonthlyStat, error) {
 	}
 
 	return stats, nil
-
 }
+
 
 // period format is "YYYY-WW" where WW is week number according to strftime
 func parseWeekStart(period string) (time.Time, error) {
