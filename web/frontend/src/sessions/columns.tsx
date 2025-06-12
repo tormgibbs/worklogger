@@ -10,7 +10,7 @@ export const columns: ColumnDef<Session>[] = [
     accessorKey: 'startTime',
     header: 'Start Time',
     cell: ({ row }) =>
-      new Date(row.getValue('startTime')).toLocaleString('en-US', {
+      new Date(row.getValue('start_time')).toLocaleString('en-US', {
         month: 'short',
         day: 'numeric',
         hour: 'numeric',
@@ -22,7 +22,7 @@ export const columns: ColumnDef<Session>[] = [
     accessorKey: 'endTime',
     header: 'End Time',
     cell: ({ row }) =>
-      new Date(row.getValue('startTime')).toLocaleString('en-US', {
+      new Date(row.getValue('end_time')).toLocaleString('en-US', {
         month: 'short',
         day: 'numeric',
         hour: 'numeric',

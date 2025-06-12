@@ -13,6 +13,7 @@ func routes(h *Handler) http.Handler {
 	router.HandlerFunc(http.MethodGet, "/api/stats/daily", h.getDailyStats)
 	router.HandlerFunc(http.MethodGet, "/api/stats/weekly", h.getWeeklyStats)
 	router.HandlerFunc(http.MethodGet, "/api/stats/monthly", h.getMonthlyStats)
+	router.HandlerFunc(http.MethodGet, "/api/sessions", h.getSessions)
 
 	return enableCORS(router)
 }

@@ -51,3 +51,13 @@ func (h *Handler) getMonthlyStats(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, stats)
 }
+
+func (h *Handler) getSessions(w http.ResponseWriter, r *http.Request) {
+	sessions, err := data.GetSessions(h.DB)
+	if err != nil {
+		fmt.Println(err)
+		http.Error(w, "Failed to get sessions", http.StatusInternalServerError)
+		return
+	}
+	writeJSON(w, http.StatusOK, sessions)
+}

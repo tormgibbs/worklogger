@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -38,6 +40,15 @@ type MonthlyStat struct {
 	Month    string  `json:"month"`
 	Hours    float64 `json:"hours"`
 	Sessions int     `json:"sessions"`
+}
+
+type Session struct {
+	ID        int    `json:"id"`
+	Task      string `json:"task"`
+	StartTime string `json:"start_time"`
+	EndTime   string `json:"end_time"`
+	Duration  string `json:"duration"`
+	Status    string `json:"status"`
 }
 
 func (m Models) CreateTask(tx *sql.Tx, task *Task) error {
@@ -407,7 +418,7 @@ func GetDailyStats(db *sql.DB) ([]*DailyStat, error) {
 	}
 	defer rows.Close()
 
-	var stats []*DailyStat = make([]*DailyStat, 0)
+	stats := make([]*DailyStat, 0)
 
 	for rows.Next() {
 		var stat DailyStat
@@ -445,7 +456,7 @@ func GetWeeklyStats(db *sql.DB) ([]*WeeklyStat, error) {
 	}
 	defer rows.Close()
 
-	var stats []*WeeklyStat = make([]*WeeklyStat, 0)
+	stats := make([]*WeeklyStat, 0)
 
 	for rows.Next() {
 		var ws WeeklyStat
@@ -492,7 +503,7 @@ func GetMonthlyStats(db *sql.DB) ([]*MonthlyStat, error) {
 	}
 	defer rows.Close()
 
-	var stats []*MonthlyStat = make([]*MonthlyStat, 0)
+	stats := make([]*MonthlyStat, 0)
 
 	for rows.Next() {
 		var ms MonthlyStat
@@ -531,4 +542,93 @@ func parseWeekStart(period string) (time.Time, error) {
 	weekStart := monday.AddDate(0, 0, (week-1)*7)
 
 	return weekStart, nil
+}
+
+func GetSessions(db *sql.DB) ([]*Session, error) {
+	query := `
+		SELECT 
+			ts.id,
+			t.description,
+			MIN(ti.start_time) AS start_time,
+			MAX(ti.end_time) AS last_interval_end,
+			ts.ended_at,
+			EXISTS (
+				SELECT 1 FROM task_session_intervals ti2 
+				WHERE ti2.session_id = ts.id AND ti2.end_time IS NULL
+			) AS has_active_interval,
+			GROUP_CONCAT(
+				(CASE 
+					WHEN ti.end_time IS NOT NULL 
+					THEN (JULIANDAY(ti.end_time) - JULIANDAY(ti.start_time)) * 86400
+					ELSE (JULIANDAY(CURRENT_TIMESTAMP) - JULIANDAY(ti.start_time)) * 86400
+				END)
+			)
+		FROM task_sessions ts
+		JOIN tasks t ON ts.task_id = t.id
+		JOIN task_session_intervals ti ON ti.session_id = ts.id
+		GROUP BY ts.id
+		ORDER BY start_time DESC
+	`
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	sessions := make([]*Session, 0)
+
+	rows, err := db.QueryContext(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("query failed: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var (
+			s         Session
+			startTime string
+			endTime   sql.NullString
+			endedAt   sql.NullString
+			hasActive bool
+			durations string
+		)
+
+		err := rows.Scan(&s.ID, &s.Task, &startTime, &endTime, &endedAt, &hasActive, &durations)
+		if err != nil {
+			return nil, fmt.Errorf("scan error: %w", err)
+		}
+
+		totalSeconds := 0
+		for _, part := range strings.Split(durations, ",") {
+			sec, _ := strconv.ParseFloat(part, 64)
+			totalSeconds += int(sec)
+		}
+
+		hours := totalSeconds / 3600
+		minutes := (totalSeconds % 3600) / 60
+
+		if hours > 0 {
+			s.Duration = fmt.Sprintf("%dh %dm", hours, minutes)
+		} else {
+			s.Duration = fmt.Sprintf("%dm", minutes)
+		}
+
+		s.StartTime = startTime
+		s.EndTime = endTime.String
+
+		// Determine session status
+		if endedAt.Valid {
+			s.Status = "ended"
+		} else if hasActive {
+			s.Status = "in_progress"
+		} else {
+			s.Status = "paused"
+		}
+
+		sessions = append(sessions, &s)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("rows error: %w", err)
+	}
+
+	return sessions, nil
+
 }

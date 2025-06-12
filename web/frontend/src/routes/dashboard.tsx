@@ -1,16 +1,13 @@
+import Sessions from '@/components/Sessions'
 import TabbedStats from '@/components/TabbedStats'
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card'
-import { sessions } from '@/data/sessions'
 
 import { useSummaryData } from '@/hooks/useSummaryData'
-import { columns } from '@/sessions/columns'
-import { DataTable } from '@/sessions/data-table'
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 
@@ -87,21 +84,7 @@ function RouteComponent() {
       </div>
 
       <div className="mt-10">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold">
-              Recent Sessions
-            </CardTitle>
-            <CardDescription className="text-sm text-gray-500">
-              View your recent work sessions and track progress
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="container mx-auto">
-              <DataTable columns={columns} data={sessions} />
-            </div>
-          </CardContent>
-        </Card>
+        <Sessions />
       </div>
     </div>
   )
