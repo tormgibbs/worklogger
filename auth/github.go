@@ -13,7 +13,9 @@ import (
 	"github.com/pkg/browser"
 )
 
-func StartGitHubOAuth(clientID, clientSecret, redirectURI string) error {
+const redirectURI = "http://localhost:3000/callback"
+
+func StartGitHubOAuth(clientID, clientSecret string) error {
 
 	authUrl := fmt.Sprintf(
 		"https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s&scope=read:user",
@@ -37,7 +39,7 @@ func StartGitHubOAuth(clientID, clientSecret, redirectURI string) error {
 			return
 		}
 
-		token, err := exchangeCodeForToken(code, clientID, clientSecret, redirectURI)
+		token, err := exchangeCodeForToken(code, clientID, clientSecret)
 		if err != nil {
 			fmt.Println("Error exchanging token:", err)
 			http.Error(w, "OAuth failed", http.StatusInternalServerError)
@@ -79,7 +81,7 @@ func StartGitHubOAuth(clientID, clientSecret, redirectURI string) error {
 	return nil
 }
 
-func exchangeCodeForToken(code, clientID, clientSecret, redirectURI string) (string, error) {
+func exchangeCodeForToken(code, clientID, clientSecret string) (string, error) {
 
 	data := url.Values{}
 	data.Set("client_id", clientID)

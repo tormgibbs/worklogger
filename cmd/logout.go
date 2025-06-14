@@ -26,6 +26,8 @@ locally stored session data.`,
 		switch session.Method {
 		case "github":
 			auth.DeleteToken("github_token")
+			auth.DeleteToken("github_client_id")
+			auth.DeleteToken("github_client_secret")
 		case "local":
 			auth.DeleteToken("local_token")
 		}

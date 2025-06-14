@@ -52,7 +52,6 @@ If no method is provided, a list of available options will be shown.`,
 			if err := auth.StartGitHubOAuth(
 				config.Github.ClientID,
 				config.Github.ClientSecret,
-				config.Github.RedirectURI,
 			); err != nil {
 				cmd.PrintErrf("GitHub OAuth failed: %v\n", err)
 			}
@@ -77,7 +76,6 @@ If no method is provided, a list of available options will be shown.`,
 			if err := auth.StartGitHubOAuth(
 				config.Github.ClientID,
 				config.Github.ClientSecret,
-				config.Github.RedirectURI,
 			); err != nil {
 				cmd.PrintErrf("GitHub OAuth failed: %v\n", err)
 				return

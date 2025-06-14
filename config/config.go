@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -11,7 +12,6 @@ import (
 type GithubCreds struct {
 	ClientID     string
 	ClientSecret string
-	RedirectURI  string
 }
 
 var (
@@ -20,7 +20,10 @@ var (
 )
 
 func Init() {
-	_ = godotenv.Load()
+	err := godotenv.Load()
+	if err != nil {
+		fmt.Println("error reading env file")
+	}
 
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
@@ -39,25 +42,16 @@ func Init() {
 		}
 	}
 
-	redirectURI := viper.GetString("GITHUB_REDIRECT_URI")
-	if redirectURI == "" {
-		if uri, err := auth.GetToken("github_redirect_uri"); err == nil {
-			redirectURI = uri
-		} else {
-			redirectURI = "http://localhost:8080/callback"
-		}
-	}
-
 	Github = GithubCreds{
 		ClientID:     clientID,
 		ClientSecret: clientSecret,
-		RedirectURI:  redirectURI,
 	}
 
 	DSN = viper.GetString("WORKLOGGER_DSN")
 	if DSN == "" {
 		DSN = ".worklogger/db.sqlite"
 	}
+
 }
 
 // func Init() {
@@ -69,11 +63,15 @@ func Init() {
 // 	Github = GithubCreds{
 // 		ClientID:     viper.GetString("GITHUB_CLIENT_ID"),
 // 		ClientSecret: viper.GetString("GITHUB_CLIENT_SECRET"),
-// 		RedirectURI:  viper.GetString("GITHUB_REDIRECT_URI"),
 // 	}
 
 // 	DSN = viper.GetString("WORKLOGGER_DSN")
 // 	if DSN == "" {
 // 		DSN = ".worklogger/db.sqlite"
 // 	}
+
+// 	fmt.Println("clientID:", Github.ClientID)
+// 	fmt.Println("clientSecret:", Github.ClientSecret)
+// 	fmt.Println("viper-clientID:", viper.GetString("GITHUB_CLIENT_ID"))
+// 	fmt.Println("viper-clientSecret:", viper.GetString("GITHUB_CLIENT_SECRET"))
 // }

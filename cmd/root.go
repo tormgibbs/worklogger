@@ -36,8 +36,6 @@ to quickly create a Cobra application.`,
 	// Run: func(cmd *cobra.Command, args []string) { },
 
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
-		config.Init()
-
 		skipInit := map[string]bool{
 			"init":    true,
 			"help":    true,
@@ -48,6 +46,8 @@ to quickly create a Cobra application.`,
 			return
 		}
 
+		config.Init()
+
 		if err := checkInitialization(); err != nil {
 			fmt.Printf("%v\n", err)
 			fmt.Println("Please run 'worklogger init' first to set up the environment.")
@@ -56,9 +56,9 @@ to quickly create a Cobra application.`,
 
 		if db == nil {
 
-			if dsn == "" {
-				dsn = config.DSN
-			}
+			// if dsn == "" {
+			// 	dsn = config.DSN
+			// }
 
 			db = data.NewSQLiteDB(dsn)
 			models = data.NewModels(db)
@@ -90,7 +90,7 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.worklogger.yaml)")
 
-	rootCmd.PersistentFlags().StringVar(&dsn, "dsn", "", "SQLite database file path")
+	rootCmd.PersistentFlags().StringVar(&dsn, "dsn", ".worklogger/db.sqlite", "SQLite database file path")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
