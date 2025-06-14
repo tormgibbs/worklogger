@@ -22,18 +22,3 @@ func GetToken(key string) (string, error) {
 func DeleteToken(key string) error {
 	return keyring.Delete(ServiceName, key)
 }
-
-
-// var (
-// 	hashFlag, messageFlag, authorFlag, dateFLag string
-// )
-
-// readCommitCmd.Flags().StringVarP(&hashFlag, "hash", "h", "", "Git commit hash")
-// 	readCommitCmd.Flags().StringVarP(&messageFlag, "message", "m", "", "Git commit message")
-// 	readCommitCmd.Flags().StringVarP(&authorFlag, "author", "a", "", "Commit author")
-// 	readCommitCmd.Flags().StringVarP(&hashFlag, "date", "d", "", "Commit date")
-
-// 	if hashFlag == "" || messageFlag == "" || authorFlag == "" || dateFLag == "" {
-// 		fmt.Println("Missing required commit fields")
-// 		flag.Usage()
-// 		return

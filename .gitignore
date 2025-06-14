@@ -1,3 +1,7 @@
 .vscode
 scratches
 .env
+.worklogger
+export.csv
+worklogger
+web/server/dist

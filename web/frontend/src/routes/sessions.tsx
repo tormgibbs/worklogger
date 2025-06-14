@@ -1,3 +1,4 @@
+import { handleExport } from '@/components/TabbedStats'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -21,7 +22,7 @@ function RouteComponent() {
   useEffect(() => {
     const fetchSessions = async () => {
       try {
-        const res = await fetch('http://localhost:8080/api/sessions')
+        const res = await fetch('/api/sessions')
         const data = await res.json()
         setSessions(data)
       } catch (err) {
@@ -62,7 +63,7 @@ function RouteComponent() {
           <p className='text-3xl font-bold'>Sessions</p>
           <p className='text-gray-500'>View your work sessions</p>
         </div>
-        <Button>
+        <Button onClick={handleExport}>
           <Download />
           Export CSV
         </Button>

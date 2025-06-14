@@ -1,5 +1,8 @@
+import Sessions from '@/components/Sessions'
+import StatCards from '@/components/StatsCards'
+import TabbedStats from '@/components/TabbedStats'
+
 import { createFileRoute } from '@tanstack/react-router'
-import logo from '../logo.svg'
 
 export const Route = createFileRoute('/')({
   component: App,
@@ -7,33 +10,23 @@ export const Route = createFileRoute('/')({
 
 function App() {
   return (
-    <div className="text-center">
-      <header className="min-h-screen flex flex-col items-center justify-center bg-[#282c34] text-white text-[calc(10px+2vmin)]">
-        <img
-          src={logo}
-          className="h-[40vmin] pointer-events-none animate-[spin_20s_linear_infinite]"
-          alt="logo"
-        />
-        <p>
-          Edit <code>src/routes/index.tsx</code> and save to reload.
+    <div className="flex flex-1 flex-col p-4">
+      <div>
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-gray-600">
+          Track your development time and boost productivity
         </p>
-        <a
-          className="text-[#61dafb] hover:underline"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-        <a
-          className="text-[#61dafb] hover:underline"
-          href="https://tanstack.com"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn TanStack
-        </a>
-      </header>
+      </div>
+
+      <StatCards />
+
+      <div className="mt-10">
+        <TabbedStats />
+      </div>
+
+      <div className="mt-10">
+        <Sessions />
+      </div>
     </div>
   )
 }

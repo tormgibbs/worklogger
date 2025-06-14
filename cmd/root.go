@@ -37,7 +37,29 @@ to quickly create a Cobra application.`,
 
 	PersistentPreRun: func(cmd *cobra.Command, args []string) {
 		config.Init()
+
+		skipInit := map[string]bool{
+			"init":    true,
+			"help":    true,
+			"version": true,
+		}
+
+		if skipInit[cmd.Name()] {
+			return
+		}
+
+		if err := checkInitialization(); err != nil {
+			fmt.Printf("%v\n", err)
+			fmt.Println("Please run 'worklogger init' first to set up the environment.")
+			os.Exit(1)
+		}
+
 		if db == nil {
+
+			if dsn == "" {
+				dsn = config.DSN
+			}
+
 			db = data.NewSQLiteDB(dsn)
 			models = data.NewModels(db)
 		}
@@ -68,7 +90,7 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.worklogger.yaml)")
 
-	rootCmd.PersistentFlags().StringVar(&dsn, "dsn", "db.sqlite", "SQLite database file path")
+	rootCmd.PersistentFlags().StringVar(&dsn, "dsn", "", "SQLite database file path")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
@@ -97,4 +119,23 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Fprintln(os.Stderr, "Using config file:", viper.ConfigFileUsed())
 	}
+}
+
+func checkInitialization() error {
+	// Check if .worklogger directory exists
+	if _, err := os.Stat(".worklogger"); os.IsNotExist(err) {
+		return fmt.Errorf("WorkLogger not initialized - .worklogger directory not found")
+	}
+
+	// Check if database exists
+	dbPath := ".worklogger/db.sqlite"
+	if dsn != "" {
+		dbPath = dsn
+	}
+
+	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
+		return fmt.Errorf("database not found at %s", dbPath)
+	}
+
+	return nil
 }

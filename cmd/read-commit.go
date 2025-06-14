@@ -18,13 +18,17 @@ var (
 var readCommitCmd = &cobra.Command{
 	Use:     "read-commit",
 	Aliases: []string{"readCommit"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short:   "Record a Git commit into the database",
+	Long: `Record a Git commit to your work session.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Use this when integrating with Git hooks or external tools
+to store commit history in WorkLogger.
+
+All flags are required:
+  --hash      Commit hash
+  --message   Commit message
+  --author    Author of the commit
+  --date      Commit date (ISO 8601 or compatible format)`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		if hashFlag == "" || messageFlag == "" || authorFlag == "" || dateFlag == "" {
@@ -41,7 +45,7 @@ to quickly create a Cobra application.`,
 
 		var sessionID *int // nil by default
 		if ts != nil {
-				sessionID = &ts.ID // Only set if ts is non-nil
+			sessionID = &ts.ID // Only set if ts is non-nil
 		}
 
 		commit := &data.Commit{
@@ -58,12 +62,6 @@ to quickly create a Cobra application.`,
 		}
 
 		fmt.Printf("Commit %s recorded\n", commit.Hash)
-
-		// fmt.Printf("Commit:\n")
-		// fmt.Printf("Hash: %s\n", hashFlag)
-		// fmt.Printf("Message: %s\n", messageFlag)
-		// fmt.Printf("Author: %s\n", authorFlag)
-		// fmt.Printf("Date: %s\n", dateFlag)
 	},
 }
 
@@ -74,14 +72,4 @@ func init() {
 	readCommitCmd.Flags().StringVar(&messageFlag, "message", "", "Git commit message")
 	readCommitCmd.Flags().StringVar(&authorFlag, "author", "", "Commit author")
 	readCommitCmd.Flags().StringVar(&dateFlag, "date", "", "Commit date")
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// readCommitCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// readCommitCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

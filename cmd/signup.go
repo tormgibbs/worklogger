@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/tormgibbs/worklogger/auth"
+	"github.com/tormgibbs/worklogger/config"
 	"github.com/tormgibbs/worklogger/tui"
 )
 
@@ -36,7 +37,12 @@ If no method is provided, an interactive prompt will guide you through the signu
 		}
 
 		if githubSignUpFlag {
-			if err := auth.StartGitHubOAuth(); err != nil {
+			err := auth.StartGitHubOAuth(
+				config.Github.ClientID,
+				config.Github.ClientSecret,
+				config.Github.RedirectURI,
+			)
+			if err != nil {
 				cmd.PrintErrf("GitHub OAuth failed: %v\n", err)
 			}
 			return
@@ -57,19 +63,21 @@ If no method is provided, an interactive prompt will guide you through the signu
 
 		switch m.Selected {
 		case "Github":
-			if err := auth.StartGitHubOAuth(); err != nil {
+			if err := auth.StartGitHubOAuth(
+				config.Github.ClientID,
+				config.Github.ClientSecret,
+				config.Github.RedirectURI,
+			); err != nil {
 				cmd.PrintErrf("GitHub OAuth failed: %v\n", err)
+				return
 			}
 			fmt.Println("GitHub Signup Successful")
-			return
 		case "Local":
 			if err := auth.LocalSignUp(); err != nil {
 				cmd.PrintErrf("Local Signup failed: %v\n", err)
 			}
-			return
 		default:
 			fmt.Println("No signup method selected. Exiting.")
-			return
 		}
 	},
 }
@@ -80,14 +88,4 @@ func init() {
 	signupCmd.Flags().BoolVarP(&githubSignUpFlag, "github", "g", false, "Sign up using GitHub authentication")
 
 	signupCmd.Flags().BoolVarP(&localSignUpFlag, "local", "l", false, "Sign up using local credentials")
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// signupCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// signupCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

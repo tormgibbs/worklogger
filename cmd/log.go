@@ -11,13 +11,9 @@ import (
 // logCmd represents the log command
 var logCmd = &cobra.Command{
 	Use:   "log",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short: "View your logged work sessions",
+	Long: `Launches an interactive TUI to browse your past work logs,
+including tasks, durations, and timestamps.`,
 	Run: func(cmd *cobra.Command, args []string) {
 
 		logs, err := models.Logs.GetLogsWithDurations()
@@ -26,12 +22,8 @@ to quickly create a Cobra application.`,
 			return
 		}
 
-		// fmt.Println("logs: ", logs)
-
-		_, err = tui.RunLogUI(logs)
-		if err != nil {
-			cmd.PrintErrf("failed to run log tui: %v", err)
-			return
+		if _, err := tui.RunLogUI(logs); err != nil {
+			cmd.PrintErrf("Failed to start log viewer: %v\n", err)
 		}
 
 	},
@@ -39,14 +31,4 @@ to quickly create a Cobra application.`,
 
 func init() {
 	rootCmd.AddCommand(logCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// logCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// logCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

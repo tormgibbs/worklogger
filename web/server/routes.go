@@ -16,5 +16,14 @@ func routes(h *Handler) http.Handler {
 	router.HandlerFunc(http.MethodGet, "/api/sessions", h.getSessions)
 	router.HandlerFunc(http.MethodGet, "/api/export.csv", h.exportAllDataCSV)
 
-	return enableCORS(router)
+	fsHandler := http.FileServer(frontendFS)
+	router.Handler(http.MethodGet, "/", fsHandler)
+	router.Handler(http.MethodGet, "/assets/*filepath", fsHandler)
+
+	router.NotFound = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r.URL.Path = "/index.html"
+		fsHandler.ServeHTTP(w, r)
+	})
+
+	return router
 }

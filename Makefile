@@ -53,3 +53,39 @@ db/migrations/force:
 	@test $(version) || (echo "Error: version argument required" && exit 1)
 	@echo forcing migration to version $(version)...
 	@migrate -path $(MIGRATIONS_DIR) -database $(DB_DSN) force $(version)
+
+
+# =================================================================================== #
+# WEB (Frontend + Embed Setup)
+# =================================================================================== #
+
+## web/build: build frontend assets and move them into web/server/dist for embedding
+.PHONY: web/build
+web/build:
+	@echo "Building frontend..."
+	@cd web/frontend && pnpm install && pnpm run build
+	@rm -rf web/server/dist
+	@cp -r web/frontend/dist web/server/dist
+
+## web/clean: remove built frontend assets
+.PHONY: web/clean
+web/clean:
+	@echo "Cleaning frontend build artifacts..."
+	@rm -rf web/frontend/dist web/server/dist
+
+# =================================================================================== #
+# APP
+# =================================================================================== #
+
+## build: build the Go application (after embedding dist)
+.PHONY: build
+build: web/build
+	@echo "Building Go binary..."
+	@go build -o worklogger .
+
+## run: build and run the app
+.PHONY: run
+run: build
+	@echo "Running app..."
+	./worklogger studio
+

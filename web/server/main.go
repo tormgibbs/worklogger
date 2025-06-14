@@ -1,23 +1,21 @@
 package server
-	
+
 import (
+	"database/sql"
 	"log"
 	"net/http"
-
-	"github.com/tormgibbs/worklogger/data"
 )
 
-func Serve() {
-	db := data.NewSQLiteDB("db.sqlite")
-	defer db.Close()
+var Addr = "http://localhost:3001"
 
+func Serve(db *sql.DB) {
 	handler := &Handler{DB: db}
 
 	server := &http.Server{
-		Addr:    ":8080",
+		Addr:    ":3001",
 		Handler: routes(handler),
 	}
 
-	log.Println("Server running on :8080")
+	log.Println("Server running on :3001")
 	log.Fatal(server.ListenAndServe())
 }

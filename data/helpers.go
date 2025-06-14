@@ -231,7 +231,6 @@ func GetSummaryStats(db *sql.DB) (*SummaryStats, error) {
 
 	wg.Wait()
 	return &stats, firstErr
-
 }
 
 func GetTodayHours(db *sql.DB) (float64, float64, error) {
@@ -720,7 +719,7 @@ func GetSessions(db *sql.DB) ([]*Session, error) {
 	return sessions, nil
 }
 
-func exportToCSV(db *sql.DB) error {
+func ExportToCSV(db *sql.DB, filename string) error {
 	summary, err := GetSummaryStats(db)
 	if err != nil {
 		return err
@@ -742,7 +741,7 @@ func exportToCSV(db *sql.DB) error {
 		return err
 	}
 
-	file, err := os.Create("export.csv")
+	file, err := os.Create(filename)
 	if err != nil {
 		return fmt.Errorf("failed to create file: %w", err)
 	}
@@ -790,5 +789,6 @@ func exportToCSV(db *sql.DB) error {
 		writer.Write([]string{"Session", s.Task, s.StartTime, end, s.Duration, s.Status})
 	}
 
+	fmt.Printf("Exported to %s\n", filename)
 	return nil
 }

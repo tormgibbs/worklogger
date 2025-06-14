@@ -10,6 +10,6 @@ import (
 var migrationFiles embed.FS
 
 func main() {
-	cmd.MigrationFiles = migrationFiles
+	cmd.SetMigrationFiles(migrationFiles)
 	cmd.Execute()
 }

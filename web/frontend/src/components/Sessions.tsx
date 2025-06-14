@@ -11,7 +11,7 @@ const Sessions = () => {
   useEffect(() => {
     const fetchSessions = async () => {
       try {
-        const res = await fetch('http://localhost:8080/api/sessions')
+        const res = await fetch('/api/sessions')
         const data = await res.json()
         setSessions(data)
       } catch (err) {

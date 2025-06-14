@@ -12,13 +12,14 @@ import (
 // stopCmd represents the stop command
 var stopCmd = &cobra.Command{
 	Use:   "stop",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Stop the currently active task session",
+	Long: `Use this command to stop the active task session.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+It will close any running interval and record the session's end time.
+A summary of the session's durations (active, paused, total) will be printed.
+
+Example:
+  worklogger stop`,
 	Run: func(cmd *cobra.Command, args []string) {
 		ts, err := models.TaskSessions.Get()
 		if err != nil {

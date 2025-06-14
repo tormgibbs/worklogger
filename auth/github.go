@@ -11,13 +11,9 @@ import (
 	"time"
 
 	"github.com/pkg/browser"
-	"github.com/tormgibbs/worklogger/config"
 )
 
-
-func StartGitHubOAuth() error {
-	clientID := config.Github.ClientID
-	redirectURI := config.Github.RedirectURI
+func StartGitHubOAuth(clientID, clientSecret, redirectURI string) error {
 
 	authUrl := fmt.Sprintf(
 		"https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s&scope=read:user",
@@ -41,7 +37,7 @@ func StartGitHubOAuth() error {
 			return
 		}
 
-		token, err := exchangeCodeForToken(code)
+		token, err := exchangeCodeForToken(code, clientID, clientSecret, redirectURI)
 		if err != nil {
 			fmt.Println("Error exchanging token:", err)
 			http.Error(w, "OAuth failed", http.StatusInternalServerError)
@@ -83,10 +79,7 @@ func StartGitHubOAuth() error {
 	return nil
 }
 
-func exchangeCodeForToken(code string) (string, error) {
-	clientID := config.Github.ClientID
-	clientSecret := config.Github.ClientSecret
-	redirectURI := config.Github.RedirectURI
+func exchangeCodeForToken(code, clientID, clientSecret, redirectURI string) (string, error) {
 
 	data := url.Values{}
 	data.Set("client_id", clientID)
@@ -95,7 +88,6 @@ func exchangeCodeForToken(code string) (string, error) {
 	data.Set("redirect_uri", redirectURI)
 
 	request, err := http.NewRequest(http.MethodPost, "https://github.com/login/oauth/access_token", strings.NewReader(data.Encode()))
-
 
 	if err != nil {
 		return "", err

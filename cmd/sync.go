@@ -54,10 +54,6 @@ If no flag is passed, a prompt will guide you through the sync process.`,
 			handleActiveSessionSync(cmd, currentSession)
 
 		case createNewSession:
-			if taskDescription == "" {
-				cmd.Println("When using --new, you must also provide --desc (or -d).")
-				return
-			}
 			handleNewSessionSync(cmd)
 
 		case sessionID > 0:
@@ -79,15 +75,7 @@ func init() {
 	syncCmd.Flags().StringVarP(&taskDescription, "desc", "d", "", "Description for new task")
 	syncCmd.Flags().BoolVarP(&createNewSession, "new", "n", false, "Create new session")
 	syncCmd.Flags().BoolVarP(&leaveUnassociated, "unassociated", "u", false, "Leave commits unassociated")
-	// Here you will define your flags and configuration settings.
 
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// syncCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// syncCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
 func handleActiveSessionSync(cmd *cobra.Command, session *data.TaskSession) {

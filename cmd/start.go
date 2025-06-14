@@ -14,13 +14,14 @@ var taskFlag string
 // startCmd represents the start command
 var startCmd = &cobra.Command{
 	Use:   "start",
-	Short: "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Short: "Start a new task session",
+	Long: `Begin tracking a new task session.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+This will create a new task and log the start time. If you already
+have an active session, you'll need to stop or pause it first.
+
+Example:
+  worklogger start --task "Write documentation`,
 	Run: func(cmd *cobra.Command, args []string) {
 		if taskFlag == "" {
 			fmt.Println("⚠️  No task provided. Use --task or -t to specify one.")
@@ -69,13 +70,4 @@ func init() {
 
 	startCmd.Flags().StringVarP(&taskFlag, "task", "t", "", "Task description to start logging")
 
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// startCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// startCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

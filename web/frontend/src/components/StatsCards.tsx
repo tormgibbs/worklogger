@@ -13,12 +13,6 @@ interface SummaryData {
   productivity_score: { value: number; change: number }
 }
 
-interface StatCard {
-  title: string
-  main: string
-  subtitle: string
-  change: string
-}
 
 export default function StatCards() {
   const [data, setData] = useState<SummaryData | null>(null)
@@ -28,7 +22,7 @@ export default function StatCards() {
   useEffect(() => {
     const fetchSummary = async () => {
       try {
-        const res = await fetch('http://localhost:8080/api/summary')
+        const res = await fetch('/api/summary')
         if (!res.ok) throw new Error('Failed to fetch summary data')
         const json = await res.json()
         setData(json)
@@ -42,8 +36,8 @@ export default function StatCards() {
     fetchSummary()
   }, [])
 
-  if (loading) return <p>Loading...</p>
-  if (error) return <p>Error: {error}</p>
+  if (loading) return <p className='text-center p-4'>Loading...</p>
+  if (error) return <p className='text-center p-4 text-red-600'>Error: {error}</p>
   if (!data) return null
 
   const stats = [

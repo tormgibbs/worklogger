@@ -5,6 +5,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/tormgibbs/worklogger/auth"
+	"github.com/tormgibbs/worklogger/config"
 	"github.com/tormgibbs/worklogger/tui"
 )
 
@@ -48,7 +49,11 @@ If no method is provided, a list of available options will be shown.`,
 		}
 
 		if githubLoginFlag {
-			if err := auth.StartGitHubOAuth(); err != nil {
+			if err := auth.StartGitHubOAuth(
+				config.Github.ClientID,
+				config.Github.ClientSecret,
+				config.Github.RedirectURI,
+			); err != nil {
 				cmd.PrintErrf("GitHub OAuth failed: %v\n", err)
 			}
 			return
@@ -69,7 +74,11 @@ If no method is provided, a list of available options will be shown.`,
 
 		switch lm.Selected {
 		case "GitHub":
-			if err := auth.StartGitHubOAuth(); err != nil {
+			if err := auth.StartGitHubOAuth(
+				config.Github.ClientID,
+				config.Github.ClientSecret,
+				config.Github.RedirectURI,
+			); err != nil {
 				cmd.PrintErrf("GitHub OAuth failed: %v\n", err)
 				return
 			}
@@ -93,14 +102,4 @@ func init() {
 	loginCmd.Flags().BoolVarP(&githubLoginFlag, "github", "g", false, "Authenticate with Github")
 
 	loginCmd.Flags().BoolVarP(&localLoginFlag, "local", "l", false, "Authenticate locally (email & password)")
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// loginCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// loginCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

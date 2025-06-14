@@ -16,13 +16,9 @@ import (
 var setupHookCmd = &cobra.Command{
 	Use:     "setup-hook",
 	Aliases: []string{"setupHook"},
-	Short:   "A brief description of your command",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
-
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+	Short:   "Install Git post-commit hook for auto-logging",
+	Long: `Sets up a Git post-commit hook that automatically logs commit details 
+(hash, message, author, and date) into WorkLogger after each commit.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		hookPath := filepath.Join(".git", "hooks", "post-commit")
 		hookDir := filepath.Dir(hookPath)
@@ -57,14 +53,4 @@ worklogger record-commit \
 
 func init() {
 	rootCmd.AddCommand(setupHookCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// setupHookCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// setupHookCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }

@@ -130,7 +130,8 @@ const formatTooltipLabel = (label: string, key: string) => {
 
 const formatTooltipValue = (value: ValueType, name: NameType) => {
   const unit = name === 'hours' ? 'hrs' : 'sessions'
-  const capitalized = name.charAt(0).toUpperCase() + name.slice(1)
+  const nameStr = typeof name === 'string' ? name : String(name)
+  const capitalized = nameStr.charAt(0).toUpperCase() + nameStr.slice(1)
   return [`${value} ${unit}`, capitalized]
 }
 

@@ -1,9 +1,26 @@
-import { dailyStats, weeklyStats, monthlyStats } from "@/data/stats";
 import { Download } from "lucide-react";
 import { StatsChart } from "./StatsChart";
 import { Button } from "./ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "./ui/tabs";
 import { useEffect, useState } from "react";
+
+export const handleExport = async () => {
+  try {
+    const res = await fetch("/api/export.csv")
+    const blob = await res.blob()
+
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = "export.csv"
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+    window.URL.revokeObjectURL(url)
+  } catch (err) {
+    console.error("Failed to export CSV", err)
+  }
+}
 
 
 const TabbedStats = () => {
@@ -15,9 +32,9 @@ const TabbedStats = () => {
     const fetchStats = async () => {
       try {
         const [dailyRes, weeklyRes, monthlyRes] = await Promise.all([
-          fetch("http://localhost:8080/api/stats/daily"),
-          fetch("http://localhost:8080/api/stats/weekly"),
-          fetch("http://localhost:8080/api/stats/monthly"),
+          fetch("/api/stats/daily"),
+          fetch("/api/stats/weekly"),
+          fetch("/api/stats/monthly"),
         ]);
 
         const [dailyData, weeklyData, monthlyData] = await Promise.all([
@@ -30,12 +47,13 @@ const TabbedStats = () => {
         setWeeklyStats(weeklyData);
         setMonthlyStats(monthlyData);
       } catch (err) {
-        console.error("shit broke fetching stats", err);
+        console.error("error fetching stats", err);
       }
     };
 
     fetchStats();
   }, []);
+
 
   return (
     <Tabs defaultValue="daily" className="space-y-4">
@@ -45,7 +63,7 @@ const TabbedStats = () => {
           <TabsTrigger value="weekly">Weekly</TabsTrigger>
           <TabsTrigger value="monthly">Monthly</TabsTrigger>
         </TabsList>
-        <Button variant="outline" size="sm" className="gap-1">
+        <Button onClick={handleExport} variant="outline" size="sm" className="gap-1">
           <Download className="h-4 w-4" />
           Export CSV
         </Button>
