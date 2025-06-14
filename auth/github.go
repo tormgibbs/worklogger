@@ -16,6 +16,9 @@ import (
 const redirectURI = "http://localhost:3000/callback"
 
 func StartGitHubOAuth(clientID, clientSecret string) error {
+	if !isGitHubOAuthConfigured() {
+		return fmt.Errorf("GitHub OAuth is not configured. Please run 'worklogger init' or 'worklogger setup-github' first")
+	}
 
 	authUrl := fmt.Sprintf(
 		"https://github.com/login/oauth/authorize?client_id=%s&redirect_uri=%s&scope=read:user",
@@ -115,4 +118,11 @@ func exchangeCodeForToken(code, clientID, clientSecret string) (string, error) {
 	}
 
 	return token, nil
+}
+
+func isGitHubOAuthConfigured() bool {
+	clientID, err1 := GetToken("github_client_id")
+	clientSecret, err2 := GetToken("github_client_secret")
+
+	return err1 == nil && err2 == nil && clientID != "" && clientSecret != ""
 }

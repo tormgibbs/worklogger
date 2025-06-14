@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/joho/godotenv"
@@ -20,10 +19,7 @@ var (
 )
 
 func Init() {
-	err := godotenv.Load()
-	if err != nil {
-		fmt.Println("error reading env file")
-	}
+	_ = godotenv.Load()
 
 	viper.AutomaticEnv()
 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))

@@ -30,9 +30,19 @@ Examples:
 
 If no method is provided, an interactive prompt will guide you through the signup process.`,
 	Run: func(cmd *cobra.Command, args []string) {
+		session, err := auth.LoadSession()
+		if err != nil {
+			cmd.PrintErrf("Failed to load session: %v\n", err)
+			return
+		}
+
+		if session.Authenticated {
+			cmd.PrintErrf("You're already authenticated")
+			return
+		}
 
 		if githubSignUpFlag && localSignUpFlag {
-			fmt.Println("Error: You can't use both --github and --local")
+			cmd.PrintErrf("Error: You can't use both --github and --local")
 			return
 		}
 
@@ -43,14 +53,18 @@ If no method is provided, an interactive prompt will guide you through the signu
 			)
 			if err != nil {
 				cmd.PrintErrf("GitHub OAuth failed: %v\n", err)
+				return
 			}
+			fmt.Println("GitHub Signup Successful")
 			return
 		}
 
 		if localSignUpFlag {
 			if err := auth.LocalSignUp(); err != nil {
 				cmd.PrintErrf("Local Signup failed: %v\n", err)
+				return
 			}
+			fmt.Println("Local Signup Successful") // Add this line
 			return
 		}
 
@@ -61,7 +75,7 @@ If no method is provided, an interactive prompt will guide you through the signu
 		}
 
 		switch m.Selected {
-		case "Github":
+		case tui.GitHubOAuth:
 			if err := auth.StartGitHubOAuth(
 				config.Github.ClientID,
 				config.Github.ClientSecret,
@@ -70,10 +84,14 @@ If no method is provided, an interactive prompt will guide you through the signu
 				return
 			}
 			fmt.Println("GitHub Signup Successful")
-		case "Local":
+			return
+		case tui.LocalAuth:
 			if err := auth.LocalSignUp(); err != nil {
 				cmd.PrintErrf("Local Signup failed: %v\n", err)
+				return
 			}
+			fmt.Println("Local Signup Successful")
+			return
 		default:
 			fmt.Println("No signup method selected. Exiting.")
 		}

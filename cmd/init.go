@@ -31,6 +31,8 @@ var initCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Initializing WorkLogger...")
 
+		setupGitHubOAuth()
+
 		dir := ".worklogger"
 		if _, err := os.Stat(dir); os.IsNotExist(err) {
 			err := os.Mkdir(dir, 0755)
@@ -67,8 +69,6 @@ var initCmd = &cobra.Command{
 			log.Fatalf("Migration failed: %v", err)
 		}
 
-		setupGitHubOAuth()
-
 		fmt.Println("Migrations ran successfully!")
 		fmt.Println()
 		fmt.Println("Next steps:")
@@ -85,7 +85,6 @@ func setupGitHubOAuth() {
 	fmt.Println("=== GitHub OAuth Setup ===")
 	fmt.Println()
 
-	// Check if already configured in keyring
 	clientID, err1 := auth.GetToken("github_client_id")
 	clientSecret, err2 := auth.GetToken("github_client_secret")
 
@@ -105,7 +104,7 @@ func setupGitHubOAuth() {
 	fmt.Println("4. Copy the Client ID and generate a Client Secret")
 	fmt.Println()
 
-	// Interactive setup
+
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Print("Enter your GitHub Client ID (or press Enter to skip): ")
@@ -130,13 +129,10 @@ func setupGitHubOAuth() {
 
 	if err := auth.SetToken("github_client_secret", newClientSecret); err != nil {
 		fmt.Printf("Error saving Client Secret to keyring: %v\n", err)
-		// Clean up the client ID if secret failed
 		auth.DeleteToken("github_client_id")
 		return
 	}
 
-	// Also save redirect URI for consistency
-	auth.SetToken("github_redirect_uri", "http://localhost:3000/callback")
 
 	fmt.Println("✓ GitHub OAuth credentials saved securely to system keyring")
 	fmt.Println("✓ GitHub integration is ready!")

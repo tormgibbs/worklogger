@@ -54,7 +54,9 @@ If no method is provided, a list of available options will be shown.`,
 				config.Github.ClientSecret,
 			); err != nil {
 				cmd.PrintErrf("GitHub OAuth failed: %v\n", err)
+				return
 			}
+			fmt.Println("GitHub Login Successful")
 			return
 		}
 
@@ -72,7 +74,7 @@ If no method is provided, a list of available options will be shown.`,
 		}
 
 		switch lm.Selected {
-		case "GitHub":
+		case tui.GitHubOAuth:
 			if err := auth.StartGitHubOAuth(
 				config.Github.ClientID,
 				config.Github.ClientSecret,
@@ -81,7 +83,7 @@ If no method is provided, a list of available options will be shown.`,
 				return
 			}
 			fmt.Println("GitHub Login Successful")
-		case "Local":
+		case tui.LocalAuth:
 			if err := auth.LocalLogin(); err != nil {
 				cmd.PrintErrf("Local Login failed: %v\n", err)
 				return
