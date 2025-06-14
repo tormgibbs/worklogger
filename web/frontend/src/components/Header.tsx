@@ -3,7 +3,7 @@ import { NavLink } from './NavLink' // adjust the path if needed
 
 export default function Header() {
   return (
-    <header className="p-4 flex gap-2 bg-white text-black items-center justify-between">
+    <header className="p-4 flex gap-2 bg-white text-black border-b-2 items-center justify-between">
       <p className="text-2xl font-bold">Worklogger</p>
       <nav className="flex flex-row gap-4">
         <NavLink

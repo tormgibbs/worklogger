@@ -7,7 +7,7 @@ export const columns: ColumnDef<Session>[] = [
     header: 'Task',
   },
   {
-    accessorKey: 'startTime',
+    accessorKey: 'start_time',
     header: 'Start Time',
     cell: ({ row }) =>
       new Date(row.getValue('start_time')).toLocaleString('en-US', {
@@ -19,16 +19,23 @@ export const columns: ColumnDef<Session>[] = [
       }),
   },
   {
-    accessorKey: 'endTime',
+    accessorKey: 'end_time',
     header: 'End Time',
-    cell: ({ row }) =>
-      new Date(row.getValue('end_time')).toLocaleString('en-US', {
+    cell: ({ row }) => {
+      const endTime = row.getValue('end_time') as string | null
+
+      if (!endTime) {
+        return '-'
+      }
+
+      return new Date(endTime).toLocaleString('en-US', {
         month: 'short',
         day: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
         hour12: true,
-      }),
+      })
+    }
   },
   {
     accessorKey: 'duration',

@@ -14,6 +14,7 @@ func routes(h *Handler) http.Handler {
 	router.HandlerFunc(http.MethodGet, "/api/stats/weekly", h.getWeeklyStats)
 	router.HandlerFunc(http.MethodGet, "/api/stats/monthly", h.getMonthlyStats)
 	router.HandlerFunc(http.MethodGet, "/api/sessions", h.getSessions)
+	router.HandlerFunc(http.MethodGet, "/api/export.csv", h.exportAllDataCSV)
 
 	return enableCORS(router)
 }
