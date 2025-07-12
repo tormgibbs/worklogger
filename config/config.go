@@ -49,25 +49,3 @@ func Init() {
 	}
 
 }
-
-// func Init() {
-// 	_ = godotenv.Load()
-
-// 	viper.AutomaticEnv()
-// 	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-// 	Github = GithubCreds{
-// 		ClientID:     viper.GetString("GITHUB_CLIENT_ID"),
-// 		ClientSecret: viper.GetString("GITHUB_CLIENT_SECRET"),
-// 	}
-
-// 	DSN = viper.GetString("WORKLOGGER_DSN")
-// 	if DSN == "" {
-// 		DSN = ".worklogger/db.sqlite"
-// 	}
-
-// 	fmt.Println("clientID:", Github.ClientID)
-// 	fmt.Println("clientSecret:", Github.ClientSecret)
-// 	fmt.Println("viper-clientID:", viper.GetString("GITHUB_CLIENT_ID"))
-// 	fmt.Println("viper-clientSecret:", viper.GetString("GITHUB_CLIENT_SECRET"))
-// }

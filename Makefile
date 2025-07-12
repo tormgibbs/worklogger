@@ -31,6 +31,7 @@ db/migrations/new:
 ## db/migrations/up: apply all up database migrations
 .PHONY: db/migrations/up
 db/migrations/up: confirm
+	@mkdir -p $(dir $(DB_PATH))
 	@echo Running up migrations...
 	@migrate -path $(MIGRATIONS_DIR) -database $(DB_DSN) up
 

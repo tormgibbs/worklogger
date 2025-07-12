@@ -4,6 +4,8 @@ import "database/sql"
 
 type Models struct {
 	Tasks                TaskModel
+	SessionTags          SessionTagModel
+	SessionKPI           SessionKPIModel
 	TaskSessions         TaskSessionModel
 	TaskSessionIntervals TaskSessionIntervalModel
 	Commits              CommitModel
@@ -16,6 +18,8 @@ func NewModels(DB *sql.DB) Models {
 		TaskSessions:         TaskSessionModel{DB},
 		TaskSessionIntervals: TaskSessionIntervalModel{DB},
 		Commits:              CommitModel{DB},
+		SessionTags:          SessionTagModel{DB},
+		SessionKPI:           SessionKPIModel{DB},
 		Logs:                 LogModel{DB},
 	}
 }

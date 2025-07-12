@@ -20,6 +20,11 @@ type TaskSession struct {
 	TaskID    int
 	StartedAt time.Time
 	EndedAt   *time.Time
+	Mode      string
+	Notes     string
+	Synced    bool
+	Tags      []string
+	KPIs      []string
 }
 
 type DetailedTaskSession struct {
@@ -27,20 +32,25 @@ type DetailedTaskSession struct {
 	Task Task
 }
 
-func (m TaskSessionModel) CreateTX(tx *sql.Tx, taskID int) (*TaskSession, error) {
+func (m TaskSessionModel) CreateTX(tx *sql.Tx, ts *TaskSession) (*TaskSession, error) {
 	query := `
-		INSERT INTO task_sessions (task_id)
-		VALUES (?)
-		RETURNING id, task_id, started_at
+		INSERT INTO task_sessions (task_id, mode, notes, synced)
+		VALUES (?, ?, ?, ?)
+		RETURNING id, started_at
 	`
-	var ts TaskSession
+	args := []any{
+		ts.TaskID,
+		ts.Mode,
+		ts.Notes,
+		ts.Synced,
+	}
 
-	err := tx.QueryRow(query, taskID).Scan(&ts.ID, &ts.TaskID, &ts.StartedAt)
+	err := tx.QueryRow(query, args...).Scan(&ts.ID, &ts.StartedAt)
 	if err != nil {
 		return nil, err
 	}
 
-	return &ts, nil
+	return ts, nil
 }
 
 func (m TaskSessionModel) GetAllWithTask() ([]*DetailedTaskSession, error) {
@@ -144,7 +154,6 @@ func (m TaskSessionModel) GetByID(sessionID int) (*TaskSession, error) {
 
 	return &ts, nil
 }
-
 
 func (m TaskSessionModel) Get() (*TaskSession, error) {
 	query := `

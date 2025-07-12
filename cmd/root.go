@@ -55,11 +55,6 @@ to quickly create a Cobra application.`,
 		}
 
 		if db == nil {
-
-			// if dsn == "" {
-			// 	dsn = config.DSN
-			// }
-
 			db = data.NewSQLiteDB(dsn)
 			models = data.NewModels(db)
 		}

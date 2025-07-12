@@ -52,26 +52,18 @@ type Session struct {
 	Status    string  `json:"status"`
 }
 
-func (m Models) CreateTask(tx *sql.Tx, task *Task) error {
-	err := m.Tasks.CreateTx(tx, task)
-	if err != nil {
-		tx.Rollback()
+func (m Models) CreateTask(tx *sql.Tx, task *Task, ts *TaskSession) error {
+	if err := m.Tasks.CreateTx(tx, task); err != nil {
 		return err
 	}
 
-	session, err := m.TaskSessions.CreateTX(tx, task.ID)
+	ts.TaskID = task.ID
+	session, err := m.TaskSessions.CreateTX(tx, ts)
 	if err != nil {
-		tx.Rollback()
 		return err
 	}
 
-	err = m.TaskSessionIntervals.CreateTX(tx, session.ID)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-
-	if err := tx.Commit(); err != nil {
+	if err := m.TaskSessionIntervals.CreateTX(tx, session.ID); err != nil {
 		return err
 	}
 
@@ -87,10 +79,8 @@ func (m TaskSessionModel) GetDurations(sessionID int) (totalTime, activeTime, pa
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	// Use errgroup to run two queries concurrently
 	g, ctx := errgroup.WithContext(ctx)
 
-	// Fetch session times
 	g.Go(func() error {
 		query := `
 			SELECT started_at, ended_at
@@ -100,7 +90,6 @@ func (m TaskSessionModel) GetDurations(sessionID int) (totalTime, activeTime, pa
 		return m.DB.QueryRowContext(ctx, query, sessionID).Scan(&startedAt, &endedAt)
 	})
 
-	// Fetch total active time from intervals
 	g.Go(func() error {
 		query := `
 			SELECT SUM(strftime('%s', end_time) - strftime('%s', start_time))
@@ -110,12 +99,10 @@ func (m TaskSessionModel) GetDurations(sessionID int) (totalTime, activeTime, pa
 		return m.DB.QueryRowContext(ctx, query, sessionID).Scan(&activeSeconds)
 	})
 
-	// Wait for both queries to finish
 	if err := g.Wait(); err != nil {
 		return 0, 0, 0, err
 	}
 
-	// Validation
 	if endedAt.IsZero() {
 		return 0, 0, 0, fmt.Errorf("session is still active; stop it first to calculate durations")
 	}
@@ -136,7 +123,6 @@ func CreateTaskAndSession(db *sql.DB, description string) (*Task, *TaskSession, 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
-	// Step 1: Insert Task and get back ID + CreatedAt
 	query := `
 		INSERT INTO tasks (description)
 		VALUES (?)
@@ -156,7 +142,6 @@ func CreateTaskAndSession(db *sql.DB, description string) (*Task, *TaskSession, 
 		RETURNING id, task_id, started_at, ended_at
 	`
 
-	// Step 2: Insert Task Session and get back full info
 	session := &TaskSession{}
 	err = tx.QueryRowContext(ctx, query, task.ID).Scan(&session.ID, &session.TaskID, &session.StartedAt, &session.EndedAt)
 
@@ -165,7 +150,6 @@ func CreateTaskAndSession(db *sql.DB, description string) (*Task, *TaskSession, 
 		return nil, nil, fmt.Errorf("failed to insert task session: %w", err)
 	}
 
-	// Finalize the transaction
 	if err = tx.Commit(); err != nil {
 		return nil, nil, fmt.Errorf("commit failed: %w", err)
 	}
@@ -279,13 +263,13 @@ func GetWeekHours(db *sql.DB) (float64, float64, error) {
 
 	currentWeekQuery := `
 		SELECT COALESCE(SUM(
-				(strftime('%s', COALESCE(end_time, DATETIME('now'))) 
-				- strftime('%s', start_time)) / 3600.0
+			(strftime('%s', COALESCE(end_time, DATETIME('now'))) 
+			- strftime('%s', start_time)) / 3600.0
 		), 0)
 		FROM task_session_intervals
 		WHERE 
-				start_time < DATETIME('now', 'weekday 1', 'start of day') AND
-				(end_time IS NULL OR end_time >= DATETIME('now', 'weekday 1', '-7 days', 'start of day'));
+			start_time < DATETIME('now', 'weekday 1', 'start of day') AND
+			(end_time IS NULL OR end_time >= DATETIME('now', 'weekday 1', '-7 days', 'start of day'));
 	`
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
@@ -297,13 +281,13 @@ func GetWeekHours(db *sql.DB) (float64, float64, error) {
 
 	previousWeekQuery := `
 		SELECT COALESCE(SUM(
-				(strftime('%s', COALESCE(end_time, DATETIME('now', 'weekday 1', '-7 days', 'start of day'))) 
-				- strftime('%s', start_time)) / 3600.0
+			(strftime('%s', COALESCE(end_time, DATETIME('now', 'weekday 1', '-7 days', 'start of day'))) 
+			- strftime('%s', start_time)) / 3600.0
 		), 0)
 		FROM task_session_intervals
 		WHERE 
-				start_time < DATETIME('now', 'weekday 1', '-7 days', 'start of day') AND
-				(end_time IS NULL OR end_time >= DATETIME('now', 'weekday 1', '-14 days', 'start of day'));
+			start_time < DATETIME('now', 'weekday 1', '-7 days', 'start of day') AND
+			(end_time IS NULL OR end_time >= DATETIME('now', 'weekday 1', '-14 days', 'start of day'));
 	`
 	err = db.QueryRowContext(ctx, previousWeekQuery).Scan(&previousWeek)
 	if err != nil {
@@ -388,7 +372,6 @@ func GetProductivityScore(db *sql.DB) (float64, float64, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	// Get today's score
 	today := time.Now().Format("2006-01-02")
 	var score float64
 	err := db.QueryRowContext(ctx, getScoreQuery, today, today, today, today, today, today).Scan(&score)
@@ -396,7 +379,6 @@ func GetProductivityScore(db *sql.DB) (float64, float64, error) {
 		return 0, 0, fmt.Errorf("failed to get today's score: %w", err)
 	}
 
-	// Get yesterday's score
 	yesterday := time.Now().AddDate(0, 0, -1).Format("2006-01-02")
 	var lastScore float64
 	err = db.QueryRowContext(ctx, getScoreQuery, yesterday, yesterday, yesterday, yesterday, yesterday, yesterday).Scan(&lastScore)
@@ -428,33 +410,33 @@ func setErr(dst *error, err error) {
 func GetDailyStats(db *sql.DB) ([]*DailyStat, error) {
 	query := `
 		WITH RECURSIVE days(day) AS (
-				SELECT DATE('now', '-6 days')
-				UNION ALL
-				SELECT DATE(day, '+1 day')
-				FROM days
-				WHERE day < DATE('now')
+			SELECT DATE('now', '-6 days')
+			UNION ALL
+			SELECT DATE(day, '+1 day')
+			FROM days
+			WHERE day < DATE('now')
 		),
 		intervals AS (
-				SELECT 
-						days.day AS period,
-						session_id,
-						CASE 
-								WHEN strftime('%s', MIN(COALESCE(end_time, DATETIME('now')), DATETIME(days.day, '+1 day'))) -
-										strftime('%s', MAX(start_time, DATETIME(days.day))) > 0
-								THEN (strftime('%s', MIN(COALESCE(end_time, DATETIME('now')), DATETIME(days.day, '+1 day'))) -
-											strftime('%s', MAX(start_time, DATETIME(days.day)))) / 3600.0
-								ELSE 0
-						END AS duration
-				FROM task_session_intervals
-				CROSS JOIN days
-				WHERE start_time < DATETIME(days.day, '+1 day') 
-					AND COALESCE(end_time, DATETIME('now')) > days.day
-				GROUP BY days.day, session_id
+			SELECT 
+				days.day AS period,
+				session_id,
+				CASE 
+					WHEN strftime('%s', MIN(COALESCE(end_time, DATETIME('now')), DATETIME(days.day, '+1 day'))) -
+						strftime('%s', MAX(start_time, DATETIME(days.day))) > 0
+					THEN (strftime('%s', MIN(COALESCE(end_time, DATETIME('now')), DATETIME(days.day, '+1 day'))) -
+						strftime('%s', MAX(start_time, DATETIME(days.day)))) / 3600.0
+					ELSE 0
+					END AS duration
+			FROM task_session_intervals
+			CROSS JOIN days
+			WHERE start_time < DATETIME(days.day, '+1 day') 
+				AND COALESCE(end_time, DATETIME('now')) > days.day
+			GROUP BY days.day, session_id
 		)
 		SELECT 
-				period,
-				COUNT(DISTINCT session_id) AS sessions,
-				ROUND(SUM(duration), 2) AS hours
+			period,
+			COUNT(DISTINCT session_id) AS sessions,
+			ROUND(SUM(duration), 2) AS hours
 		FROM intervals
 		WHERE duration > 0
 		GROUP BY period
@@ -606,21 +588,16 @@ func GetMonthlyStats(db *sql.DB) ([]*MonthlyStat, error) {
 	return stats, nil
 }
 
-// period format is "YYYY-WW" where WW is week number according to strftime
 func parseWeekStart(period string) (time.Time, error) {
-	// period example: "2025-23" (year-weeknumber)
 	var year, week int
 	_, err := fmt.Sscanf(period, "%4d-%2d", &year, &week)
 	if err != nil {
 		return time.Time{}, err
 	}
 
-	// ISO 8601 weeks start on Monday.
-	// We get the first Monday of the year, then add (week-1)*7 days.
 	jan4 := time.Date(year, 1, 4, 0, 0, 0, 0, time.Local)
-	// Get the Monday of that week
 	weekday := int(jan4.Weekday())
-	if weekday == 0 { // Sunday
+	if weekday == 0 {
 		weekday = 7
 	}
 	monday := jan4.AddDate(0, 0, -(weekday - 1))
@@ -681,7 +658,6 @@ func GetSessions(db *sql.DB) ([]*Session, error) {
 			return nil, fmt.Errorf("scan error: %w", err)
 		}
 
-		// Format duration
 		hours := totalSeconds / 3600
 		minutes := (totalSeconds % 3600) / 60
 
@@ -693,14 +669,12 @@ func GetSessions(db *sql.DB) ([]*Session, error) {
 
 		s.StartTime = startTime
 
-		// Handle end time properly
 		if endTime.Valid {
 			s.EndTime = &endTime.String
 		} else {
 			s.EndTime = nil
 		}
 
-		// Determine session status
 		if endedAt.Valid {
 			s.Status = "ended"
 		} else if hasActive {
