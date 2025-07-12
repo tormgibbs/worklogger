@@ -1,3 +1,5 @@
+//go:build embed_frontend
+
 package server
 
 import (
